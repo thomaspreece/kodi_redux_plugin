@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="plugin.video.redux"
+version="0.1"
+name="Redux Kodi Video Plugin"
+provider-name="TomPreece">
+<requires>
+  <import addon="xbmc.python" version="2.20.0"/>
+  <import addon="script.module.beautifulsoup"/>
+  <import addon="script.module.httplib2"/>
+  <import addon="script.module.requests" version="2.9.1"/>
+  <import addon="script.module.dateutil" version="2.5.3"/>
+</requires>
+<extension point="xbmc.python.pluginsource" library="main.py">
+  <provides>video</provides>
+</extension>
+<extension point="xbmc.addon.metadata">
+  <summary lang="en">Redux Kodi Video Plugin</summary>
+  <description lang="en">A plugin to search and view the complete BBC Redux video catalogue.</description>
+  <assets>
+    <icon>resources\icon.png</icon>
+    <fanart>resources\fanart.jpg</fanart>
+    <screenshot>resources\screenshot-01.jpg</screenshot>
+  </assets>
+</extension>
+</addon>
