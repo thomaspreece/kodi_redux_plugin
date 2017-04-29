@@ -49,12 +49,15 @@ def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
         return [-2,None]
 
 def resolve_episode_url(redux_token, disk_ref):
-    endpoint = '/h264_mp4_hi_v1.1/media.mp4'
-
     getAssetKeyUrl = 'https://i.bbcredux.com/asset/details'
     getAssetKeyParams = {'reference': disk_ref,
                          'token': redux_token,
-                         "transcode": ["h264_mp4_hi_v1.1","h264_mp4_lo_v1.1"]}
+                         "transcode": [
+                            "h264_mp4_hi_v1.0",
+                            "h264_mp4_lo_v1.0",
+                            "h264_mp4_hi_v1.1",
+                            "h264_mp4_lo_v1.1"
+                         ]}
 
     assetKeyResponse = requests.get(getAssetKeyUrl,
                                     params=getAssetKeyParams)
@@ -65,10 +68,23 @@ def resolve_episode_url(redux_token, disk_ref):
         assetKey = assetKeyResponseJson['key']
 
         assetUrls = {}
+        # if(assetTranscodes["h264_mp4_lo_v1.3"]["generated"] == 1):
+        #     assetUrls["h264_mp4_lo"] = assetTranscodes["h264_mp4_lo_v1.3"]["uri"]
+        # elif(assetTranscodes["h264_mp4_lo_v1.2"]["generated"] == 1):
+        #     assetUrls["h264_mp4_lo"] = assetTranscodes["h264_mp4_lo_v1.2"]["uri"]
         if(assetTranscodes["h264_mp4_lo_v1.1"]["generated"] == 1):
-            assetUrls["h264_mp4_lo_v1.1"] = assetTranscodes["h264_mp4_lo_v1.1"]["uri"]
-        if(assetTranscodes["h264_mp4_lo_v1.1"]["generated"] == 1):
-            assetUrls["h264_mp4_lo_v1.1"] = assetTranscodes["h264_mp4_lo_v1.1"]["uri"]
+            assetUrls["h264_mp4_lo"] = assetTranscodes["h264_mp4_lo_v1.1"]["uri"]
+        elif(assetTranscodes["h264_mp4_lo_v1.0"]["generated"] == 1):
+            assetUrls["h264_mp4_lo"] = assetTranscodes["h264_mp4_lo_v1.0"]["uri"]
+
+        # if(assetTranscodes["h264_mp4_hi_v1.3"]["generated"] == 1):
+        #     assetUrls["h264_mp4_hi"] = assetTranscodes["h264_mp4_hi_v1.3"]["uri"]
+        # elif(assetTranscodes["h264_mp4_hi_v1.2"]["generated"] == 1):
+        #     assetUrls["h264_mp4_hi"] = assetTranscodes["h264_mp4_hi_v1.2"]["uri"]
+        if(assetTranscodes["h264_mp4_hi_v1.1"]["generated"] == 1):
+            assetUrls["h264_mp4_hi"] = assetTranscodes["h264_mp4_hi_v1.1"]["uri"]
+        elif(assetTranscodes["h264_mp4_hi_v1.0"]["generated"] == 1):
+            assetUrls["h264_mp4_hi"] = assetTranscodes["h264_mp4_hi_v1.0"]["uri"]
 
         assetUrls["ts"] = 'https://i.bbcredux.com/asset/media'\
                         + '/' + str(disk_ref) \

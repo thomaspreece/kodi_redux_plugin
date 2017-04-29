@@ -93,7 +93,7 @@ else:
                 pDialog.update( int((100*current_episode)/total_episodes) ,"Resolving Redux Urls...","Resolved {0}/{1}".format(current_episode,total_episodes),"Resolving Disk Reference")
                 [error,ref] = resolve_redux.resolve_episode_ref(redux_token, show, season, episode)
                 url = None
-                defaultedToTs = False
+                defaultedTo = None
                 if (error > -1):
                     pDialog.update( int((100*current_episode)/total_episodes) ,"Resolving Redux Urls...","Resolved {0}/{1}".format(current_episode,total_episodes),"Resolving URL")
                     urls = resolve_redux.resolve_episode_url(redux_token, ref)
@@ -110,17 +110,17 @@ else:
                                     break
                         else:
                             url = urls["ts"]
-                            defaultedToTs = True
+                            defaultedTo = "ts"
                 else:
                     failed_downloads.append("S{0}E{1}".format(season,episode))
 
                 if url != None:
-                    if(defaultedToTs == True):
-                        f.write("# Download S{0}E{1} (Defaulted to TS Format)".format(season,episode)+"\n")
+                    if(defaultedTo != None):
+                        f.write("# Download S{0}E{1} (Defaulted to {2} Format)".format(season,episode,defaultedTo)+"\n")
                     else:
                         f.write("# Download S{0}E{1}".format(season,episode)+"\n")
 
-                    url = url.replace("media.","{2} S{0}E{1}.".format(season,episode,show_title))
+                    url = url.replace("media.","{2}_S{0}E{1}.".format(season,episode,re.sub("[^a-zA-Z0-9]","",show_title)))
 
                     f.write("{0}\n".format(url))
                 else:

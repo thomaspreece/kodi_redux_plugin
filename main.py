@@ -399,7 +399,7 @@ def list_seasons(show):
             return
         for season in shows[show]['season']:
             if(shows[show]['season'][season]["title"]):
-                title = "{0}".format(shows[show]['season'][season]["title"].encode("utf-8"))
+                title = "{0} ({1})".format(shows[show]['season'][season]["title"].encode("utf-8"),season)
             else:
                 title = "Untitled ({0})".format(season)
             list_item = xbmcgui.ListItem(label=title)
@@ -530,7 +530,7 @@ def load_shows_json(location = None):
 def set_season_metadata(show,season,list_item):
     show_season = show["season"][season]
     if(show_season["title"]):
-        title = "{0}".format(show_season["title"].encode("utf-8"))
+        title = "{0} ({1})".format(show_season["title"].encode("utf-8"),season)
     else:
         title = "Untitled (Series {0})".format(season)
 
