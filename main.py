@@ -534,21 +534,19 @@ def set_season_metadata(show,season,list_item):
     else:
         title = "Untitled (Series {0})".format(season)
 
-    if show["poster"] != None:
-        list_item.setArt({'thumb': show["poster"], 'icon': show["poster"]})
+    if len(show["poster"]) > 0:
+        list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
+        list_item.setArt({'poster': show["poster"]})
     else:
         list_item.setArt({'thumb': DEFAULT_ICON_SHOW, 'icon': DEFAULT_ICON_SHOW})
 
-    if show["fanart"] != None:
-        list_item.setArt({'fanart': show["fanart"], 'landscape': show["fanart"]})
+    if len(show["fanart"]) > 0:
+        list_item.setArt({'fanart': show["fanart"][0], 'landscape': show["fanart"][0]})
     else:
         list_item.setArt({'fanart': DEFAULT_FANART, 'landscape': DEFAULT_FANART})
 
-    if show["banner"] != None:
-        list_item.setArt({'banner': show["banner"]})
-
-    if show["poster"] != None:
-        list_item.setArt({'poster': show["poster"]})
+    if len(show["banner"]) > 0:
+        list_item.setArt({'banner': show["banner"][0]})    
 
     list_item.addContextMenuItems([("Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')])
 
@@ -592,21 +590,19 @@ def set_episode_metadata(show,season,episode,list_item):
         image = show["season"][season]["episode"][episode]["image"]
         list_item.setArt({'thumb': image, 'icon': image})
     else:
-        if show["poster"] != None:
-            list_item.setArt({'thumb': show["poster"], 'icon': show["poster"]})
+        if len(show["poster"]) > 0:
+            list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
+            list_item.setArt({'poster': show["poster"][0]})
         else:
             list_item.setArt({'thumb': DEFAULT_ICON_SHOW, 'icon': DEFAULT_ICON_SHOW})
 
-    if show["fanart"] != None:
-        list_item.setArt({'fanart': show["fanart"], 'landscape': show["fanart"]})
+    if len(show["fanart"]) > 0:
+        list_item.setArt({'fanart': show["fanart"][0], 'landscape': show["fanart"][0]})
     else:
         list_item.setArt({'fanart': DEFAULT_FANART, 'landscape': DEFAULT_FANART})
 
-    if show["banner"] != None:
-        list_item.setArt({'banner': show["banner"]})
-
-    if show["poster"] != None:
-        list_item.setArt({'poster': show["poster"]})
+    if len(show["banner"]) > 0:
+        list_item.setArt({'banner': show["banner"][0]})
 
     list_item.addContextMenuItems([("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')])
 
@@ -646,21 +642,19 @@ def set_episode_metadata(show,season,episode,list_item):
 
 
 def set_show_metadata(show, list_item):
-    if show["poster"] != None:
-        list_item.setArt({'thumb': show["poster"], 'icon': show["poster"]})
+    if len(show["poster"]) > 0:
+        list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
+        list_item.setArt({'poster': show["poster"]})
     else:
         list_item.setArt({'thumb': DEFAULT_ICON_SHOW, 'icon': DEFAULT_ICON_SHOW})
 
-    if show["fanart"] != None:
-        list_item.setArt({'fanart': show["fanart"], 'landscape': show["fanart"]})
+    if len(show["fanart"]) > 0:
+        list_item.setArt({'fanart': show["fanart"][0], 'landscape': show["fanart"][0]})
     else:
         list_item.setArt({'fanart': DEFAULT_FANART, 'landscape': DEFAULT_FANART})
 
-    if show["banner"] != None:
-        list_item.setArt({'banner': show["banner"]})
-
-    if show["poster"] != None:
-        list_item.setArt({'poster': show["poster"]})
+    if len(show["banner"]) > 0:
+        list_item.setArt({'banner': show["banner"][0]})
 
     list_item.addContextMenuItems([("Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')')])
 
