@@ -3,7 +3,7 @@ import requests
 import math
 from time import sleep
 
-from pytvdbapi import api
+import tmdb3
 import json
 
 import datetime
@@ -13,7 +13,8 @@ CALLTIME = 30
 # Change number of threads to match number of requests per second
 
 def download_files(download_list):
-    db = api.TVDB("D7924BA9B9E92F65")
+    tmdb3.set_key('3c88496a0e0ff4b624792d9de3689697')
+    tmdb3.set_locale('en', 'gb')
     start_time = util.get_millisecs()
     CallsMade=0
     for item in download_list:
@@ -29,31 +30,32 @@ def download_files(download_list):
                 start_time -= (CALLTIME*1000)
 
             try:
-                search_result = db.search(search, "en")
+                search_result = tmdb3.searchMovie(search, adult=True)
 
                 show = None
                 if(len(search_result) > 0):
                     for i in range(len(search_result)):
-                        tvdb_show = search_result[i]
+                        moviedb_show = search_result[i]
 
-                        a = util.cleanString(util.checkStr(tvdb_show.SeriesName))
+                        a = util.cleanString(util.checkStr(moviedb_show.title))
                         b = util.cleanString(util.checkStr(search))
                         if(a == b):
-                            show = tvdb_show
+                            show = moviedb_show
                             break
 
                 if (len(search_result) > 0) and show != None:
-                    show.update()
 
                     show_json = {}
-                    for key in dir(show):
-                        key_value = getattr(show,key)
-                        show_json[key] = key_value
-                    show_json["api"] = None
-
-                    for key in show_json:
-                        if(type(show_json[key]) == datetime.datetime or type(show_json[key]) == datetime.date ):
-                            show_json[key] = show_json[key].strftime("%y-%m-%d")
+                    show_json["id"] = show.id
+                    show_json["title"] = show.title
+                    if(show.backdrop):
+                        show_json["backdrop"] = show.backdrop.geturl()
+                    if(show.poster):
+                        show_json["poster"] = show.poster.geturl()
+                    show_json["cast"] = []
+                    if(show.cast):
+                        for i in range(len(show.cast)):
+                            show_json["cast"].append(show.cast[i].name)
 
                     output_file_handle = open(output_file, 'w')
                     json.dump(show_json,output_file_handle)

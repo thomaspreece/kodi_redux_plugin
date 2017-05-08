@@ -32,6 +32,15 @@ def checkStr(s):
     else:
         return unicode(s)
 
+def emptyStr(s):
+    if(s == None):
+        return True
+    elif(unicode(s) == ""):
+        return True
+    elif(unicode(s) == " "):
+        return True
+    else:
+        return False
 
 def convert_format(vidformat):
     if(vidformat == "Original stream"):

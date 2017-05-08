@@ -3,7 +3,7 @@ import requests
 import math
 from time import sleep
 
-from pytvdbapi import api
+import imdbpie
 import json
 
 import datetime
@@ -13,7 +13,7 @@ CALLTIME = 30
 # Change number of threads to match number of requests per second
 
 def download_files(download_list):
-    db = api.TVDB("D7924BA9B9E92F65")
+    imdb = imdbpie.Imdb()
     start_time = util.get_millisecs()
     CallsMade=0
     for item in download_list:
@@ -29,31 +29,31 @@ def download_files(download_list):
                 start_time -= (CALLTIME*1000)
 
             try:
-                search_result = db.search(search, "en")
+                search_result = imdb.search_for_title(search)
 
                 show = None
                 if(len(search_result) > 0):
                     for i in range(len(search_result)):
-                        tvdb_show = search_result[i]
+                        imdb_show = search_result[i]
 
-                        a = util.cleanString(util.checkStr(tvdb_show.SeriesName))
+                        a = util.cleanString(util.checkStr(imdb_show["title"]))
                         b = util.cleanString(util.checkStr(search))
                         if(a == b):
-                            show = tvdb_show
+                            show = imdb.get_title_by_id(imdb_show["imdb_id"])
                             break
 
                 if (len(search_result) > 0) and show != None:
-                    show.update()
 
-                    show_json = {}
-                    for key in dir(show):
-                        key_value = getattr(show,key)
-                        show_json[key] = key_value
-                    show_json["api"] = None
+                    show_json = convertToJson(show)
 
-                    for key in show_json:
-                        if(type(show_json[key]) == datetime.datetime or type(show_json[key]) == datetime.date ):
-                            show_json[key] = show_json[key].strftime("%y-%m-%d")
+                    for i in range(len(show_json["writers_summary"])):
+                        show_json["writers_summary"][i] = convertToJson(show_json["writers_summary"][i])
+                    for i in range(len(show_json["directors_summary"])):
+                        show_json["directors_summary"][i] = convertToJson(show_json["directors_summary"][i])
+                    for i in range(len(show_json["cast_summary"])):
+                        show_json["cast_summary"][i] = convertToJson(show_json["cast_summary"][i])
+                    for i in range(len(show_json["credits"])):
+                        show_json["credits"][i] = convertToJson(show_json["credits"][i])
 
                     output_file_handle = open(output_file, 'w')
                     json.dump(show_json,output_file_handle)
@@ -70,8 +70,16 @@ def download_files(download_list):
                 #Server Returned an Error Code
                 print("Search Error, Skipping...")
                 print(str(e))
-                print(str(search))
+                print(util.checkStr(search))
                 sleep(1)
                 break
             break
         print("{0}".format(complete_message))
+
+def convertToJson(show):
+    show_json = {}
+    for key in dir(show):
+        key_value = getattr(show,key)
+        if key[0] != "_":
+            show_json[key] = key_value
+    return show_json

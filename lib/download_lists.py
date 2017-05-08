@@ -7,6 +7,32 @@ from sets import Set
 SCRAPE_URL = "http://www.bbc.co.uk/"
 #SCRAPE_URL = "http://open.live.bbc.co.uk/aps/"
 
+def get_moviedb_show_download_list(shows,redo=False,scrape_prefix=""):
+    SCRAPE_FOLDER = "{0}show-scrape-moviedb".format(scrape_prefix)
+    util.mkdir_p(SCRAPE_FOLDER)
+
+    download_list = []
+    seen = Set([])
+    for show_key in shows:
+        show = shows[show_key]
+        if show["moviedb_merged"] == True:
+            continue
+        pid = show["pid"]
+        if(not pid):
+            pid = show["season"].values()[0]["pid"]
+            if(not pid):
+                pid = show["season"].values()[0]["episode"].values()[0]["pid"]
+
+        if(pid and show["type"] == "Films"):
+            if os.path.isfile("{0}/{1}.json".format(SCRAPE_FOLDER,pid)) and not redo:
+                print("Skipped: "+str(pid))
+            else:
+                if not pid in seen:
+                    download_list.append([show["title"], "{1}/{0}.json".format(pid,SCRAPE_FOLDER), "Saved "+str(pid) ])
+                    seen.add(pid)
+
+    return download_list
+
 def get_bbc_programmes_show_download_list(shows,redo=False,scrape_prefix=""):
     SCRAPE_FOLDER = "{0}show-scrape-bbc".format(scrape_prefix)
     util.mkdir_p(SCRAPE_FOLDER)
@@ -50,7 +76,35 @@ def get_tvdb_show_download_list(shows,redo=False,scrape_prefix=""):
             if(not pid):
                 pid = show["season"].values()[0]["episode"].values()[0]["pid"]
 
-        if(pid and show["type"] != "FILM"):
+        if(pid and show["type"] != "Films"):
+            if os.path.isfile("{0}/{1}.json".format(SCRAPE_FOLDER,pid)) and not redo:
+                print("Skipped: "+str(pid))
+            else:
+                if not pid in seen:
+                    download_list.append([show["title"], "{1}/{0}.json".format(pid,SCRAPE_FOLDER), "Saved "+str(pid) ])
+                    seen.add(pid)
+
+    return download_list
+
+def get_imdb_show_download_list(shows,redo=False):
+    SCRAPE_FOLDER = "show-scrape-imdb"
+    util.mkdir_p(SCRAPE_FOLDER)
+
+    download_list = []
+    seen = Set([])
+    for show_key in shows:
+        show = shows[show_key]
+        if show["imdb_merged"] == True:
+            continue
+        if len(show["poster"]) > 0:
+            continue
+        pid = show["pid"]
+        if(not pid):
+            pid = show["season"].values()[0]["pid"]
+            if(not pid):
+                pid = show["season"].values()[0]["episode"].values()[0]["pid"]
+
+        if(pid and show["type"] != "Films"):
             if os.path.isfile("{0}/{1}.json".format(SCRAPE_FOLDER,pid)) and not redo:
                 print("Skipped: "+str(pid))
             else:

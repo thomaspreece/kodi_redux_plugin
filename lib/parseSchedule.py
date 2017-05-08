@@ -167,7 +167,12 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                             "image": show_image,
                             "season": {},
                             "show_merged": False,
-                            "tvdb_merged": False
+                            "tvdb_merged": False,
+                            "imdb_merged": False,
+                            "moviedb_merged": False,
+                            "fanart": [],
+                            "poster": [],
+                            "banner": []
                         }
 
                     if(not (season_number in shows[show_title]["season"])):
@@ -481,36 +486,124 @@ def merge_tvdb_files(shows, script_prefix=""):
             else:
                 show["tvdb_id"] = None
 
-            if("IMDB_ID" in tvdb_show):
-                show["imdb_id"] = util.checkStr(tvdb_show["IMDB_ID"])
-            else:
-                show["imdb_id"] = None
-
             if("banner" in tvdb_show):
-                show["banner"] = BASE_FANART_URL+util.checkStr(tvdb_show["banner"])
-            else:
-                show["banner"] = None
+                show["banner"].append(BASE_FANART_URL+util.checkStr(tvdb_show["banner"]))
 
             if("fanart" in tvdb_show):
-                show["fanart"] = BASE_FANART_URL+util.checkStr(tvdb_show["fanart"])
-            else:
-                show["fanart"] = None
+                show["fanart"].append(BASE_FANART_URL+util.checkStr(tvdb_show["fanart"]))
 
             if("poster" in tvdb_show):
-                show["poster"] = BASE_FANART_URL+util.checkStr(tvdb_show["poster"])
-            else:
-                show["poster"] = None
+                show["poster"].append(BASE_FANART_URL+util.checkStr(tvdb_show["poster"]))
+
         else:
             show["rating"] = None
             show["rating_count"] = None
             show["tvdb_id"] = None
-            show["imdb_id"] = None
-            show["poster"] = None
-            show["fanart"] = None
-            show["banner"] = None
             print("")
             print("Missing pid file {0}".format(output_file))
     return shows
+
+def merge_moviedb_files(shows, script_prefix=""):
+    SCRAPE_FOLDER = "{0}show-scrape-moviedb".format(script_prefix)
+    print("")
+    print("Parsing {0}/*".format(SCRAPE_FOLDER))
+
+    k = 0
+    for show_key in shows:
+        k = k + 1
+        if(k > 50):
+            k = 0
+            sys.stdout.write('.')
+            sys.stdout.flush()
+        show = shows[show_key]
+        if show["moviedb_merged"] == True:
+            continue
+        pid = show["pid"]
+        if(not pid):
+            pid = show["season"].values()[0]["pid"]
+            if(not pid):
+                pid = show["season"].values()[0]["episode"].values()[0]["pid"]
+
+        output_file = "{1}/{0}.json".format(pid,SCRAPE_FOLDER)
+        if(pid and os.path.isfile(output_file)):
+            try:
+                input_file_handle = open(output_file, 'rb')
+                moviedb_show = json.load(input_file_handle)
+                input_file_handle.close()
+                show["moviedb_merged"] = True
+            except Exception as e:
+                print("")
+                print("JSON Load Failed: {0}".format(str(e)))
+                moviedb_show = {}
+
+            if("cast" in moviedb_show):
+                show["actors"].extend(moviedb_show["cast"])
+
+            if("id" in moviedb_show):
+                show["moviedb_id"] = util.checkStr(moviedb_show["id"])
+            else:
+                show["moviedb_id"] = None
+
+            if("backdrop" in moviedb_show):
+                show["fanart"].append(util.checkStr(moviedb_show["backdrop"]))
+
+            if("poster" in moviedb_show):
+                show["poster"].append(util.checkStr(moviedb_show["poster"]))
+        else:
+            show["moviedb_id"] = None
+            print("")
+            print("Missing pid file {0}".format(output_file))
+    return shows
+
+def merge_imdb_files(shows, script_prefix=""):
+    SCRAPE_FOLDER = "{0}show-scrape-imdb".format(script_prefix)
+    print("")
+    print("Parsing {0}/*".format(SCRAPE_FOLDER))
+
+    k = 0
+    for show_key in shows:
+        k = k + 1
+        if(k > 50):
+            k = 0
+            sys.stdout.write('.')
+            sys.stdout.flush()
+        show = shows[show_key]
+        if show["imdb_merged"] == True:
+            continue
+        if len(show["poster"]) > 0:
+            continue
+        pid = show["pid"]
+        if(not pid):
+            pid = show["season"].values()[0]["pid"]
+            if(not pid):
+                pid = show["season"].values()[0]["episode"].values()[0]["pid"]
+
+        output_file = "{1}/{0}.json".format(pid,SCRAPE_FOLDER)
+        if(pid and os.path.isfile(output_file)):
+            try:
+                input_file_handle = open(output_file, 'rb')
+                imdb_show = json.load(input_file_handle)
+                input_file_handle.close()
+                show["imdb_merged"] = True
+            except Exception as e:
+                print("")
+                print("JSON Load Failed: {0}".format(str(e)))
+                imdb_show = {}
+
+            if("id" in imdb_show):
+                show["imdb_id"] = util.checkStr(imdb_show["imdb_id"])
+            else:
+                show["imdb_id"] = None
+
+            if("cover_url" in imdb_show):
+                show["poster"].append(util.checkStr(imdb_show["cover_url"]))
+
+        else:
+            show["imdb_id"] = None
+            print("")
+            print("Missing pid file {0}".format(output_file))
+    return shows
+
 
 # def split_films(shows):
 #     print("")
