@@ -104,7 +104,7 @@ def get_imdb_show_download_list(shows,redo=False):
             if(not pid):
                 pid = show["season"].values()[0]["episode"].values()[0]["pid"]
 
-        if(pid and show["type"] != "Films"):
+        if(pid):
             if os.path.isfile("{0}/{1}.json".format(SCRAPE_FOLDER,pid)) and not redo:
                 print("Skipped: "+str(pid))
             else:

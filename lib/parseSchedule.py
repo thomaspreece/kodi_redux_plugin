@@ -486,13 +486,13 @@ def merge_tvdb_files(shows, script_prefix=""):
             else:
                 show["tvdb_id"] = None
 
-            if("banner" in tvdb_show):
+            if("banner" in tvdb_show and not util.emptyStr(tvdb_show["banner"])):
                 show["banner"].append(BASE_FANART_URL+util.checkStr(tvdb_show["banner"]))
 
-            if("fanart" in tvdb_show):
+            if("fanart" in tvdb_show and not util.emptyStr(tvdb_show["fanart"])):
                 show["fanart"].append(BASE_FANART_URL+util.checkStr(tvdb_show["fanart"]))
 
-            if("poster" in tvdb_show):
+            if("poster" in tvdb_show and not util.emptyStr(tvdb_show["poster"])):
                 show["poster"].append(BASE_FANART_URL+util.checkStr(tvdb_show["poster"]))
 
         else:
@@ -516,7 +516,7 @@ def merge_moviedb_files(shows, script_prefix=""):
             sys.stdout.write('.')
             sys.stdout.flush()
         show = shows[show_key]
-        if show["moviedb_merged"] == True:
+        if show["moviedb_merged"] == True or show["type"] != "Films":
             continue
         pid = show["pid"]
         if(not pid):
@@ -544,10 +544,10 @@ def merge_moviedb_files(shows, script_prefix=""):
             else:
                 show["moviedb_id"] = None
 
-            if("backdrop" in moviedb_show):
+            if("backdrop" in moviedb_show and moviedb_show["backdrop"] != None):
                 show["fanart"].append(util.checkStr(moviedb_show["backdrop"]))
 
-            if("poster" in moviedb_show):
+            if("poster" in moviedb_show and moviedb_show["poster"] != None):
                 show["poster"].append(util.checkStr(moviedb_show["poster"]))
         else:
             show["moviedb_id"] = None
@@ -595,7 +595,7 @@ def merge_imdb_files(shows, script_prefix=""):
             else:
                 show["imdb_id"] = None
 
-            if("cover_url" in imdb_show):
+            if("cover_url" in imdb_show and imdb_show["cover_url"] != None):
                 show["poster"].append(util.checkStr(imdb_show["cover_url"]))
 
         else:

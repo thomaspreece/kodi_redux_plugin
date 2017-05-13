@@ -536,7 +536,7 @@ def set_season_metadata(show,season,list_item):
 
     if len(show["poster"]) > 0:
         list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
-        list_item.setArt({'poster': show["poster"]})
+        list_item.setArt({'poster': show["poster"][0]})
     else:
         list_item.setArt({'thumb': DEFAULT_ICON_SHOW, 'icon': DEFAULT_ICON_SHOW})
 
@@ -546,7 +546,7 @@ def set_season_metadata(show,season,list_item):
         list_item.setArt({'fanart': DEFAULT_FANART, 'landscape': DEFAULT_FANART})
 
     if len(show["banner"]) > 0:
-        list_item.setArt({'banner': show["banner"][0]})    
+        list_item.setArt({'banner': show["banner"][0]})
 
     list_item.addContextMenuItems([("Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')])
 
@@ -569,9 +569,6 @@ def set_season_metadata(show,season,list_item):
     list_item.setInfo('video', {'premiered': show["premier"]})
     list_item.setInfo('video', {'year': show["year"]})
     list_item.setInfo('video', {'cast': show["actors"]})
-
-    if(show["imdb_id"]):
-        list_item.setInfo('video', {'code': show["imdb_id"]})
 
     list_item.setInfo('video', {'season': season})
     list_item.setInfo('video', {'mediatype': "season"})
@@ -626,9 +623,6 @@ def set_episode_metadata(show,season,episode,list_item):
     list_item.setInfo('video', {'year': show["year"]})
     list_item.setInfo('video', {'cast': show["actors"]})
 
-    if(show["imdb_id"]):
-        list_item.setInfo('video', {'code': show["imdb_id"]})
-
     list_item.setInfo('video', {'season': season})
     list_item.setInfo('video', {'episode': episode})
 
@@ -644,7 +638,7 @@ def set_episode_metadata(show,season,episode,list_item):
 def set_show_metadata(show, list_item):
     if len(show["poster"]) > 0:
         list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
-        list_item.setArt({'poster': show["poster"]})
+        list_item.setArt({'poster': show["poster"][0]})
     else:
         list_item.setArt({'thumb': DEFAULT_ICON_SHOW, 'icon': DEFAULT_ICON_SHOW})
 
@@ -681,8 +675,6 @@ def set_show_metadata(show, list_item):
         list_item.setInfo('video', {'plotoutline': show["summary_short"].encode("utf-8")})
     elif(show["summary_medium"]):
         list_item.setInfo('video', {'plotoutline': show["summary_medium"].encode("utf-8")})
-    if(show["imdb_id"]):
-        list_item.setInfo('video', {'code': show["imdb_id"]})
 
     #list_item.setInfo('video', {'season': })
     #list_item.setInfo('video', {'episode': })
