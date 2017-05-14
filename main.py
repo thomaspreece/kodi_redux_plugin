@@ -10,8 +10,14 @@ from urlparse import parse_qsl
 import xbmcgui
 import xbmcplugin
 
+from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
+from lib.database_functions import convert_shows_to_json, convert_show_to_json
+
 import os
-import cPickle as pickle
+try:
+   import cPickle as pickle
+except:
+   import pickle
 
 from lib import sort_shows
 from lib import resolve_redux
@@ -29,13 +35,18 @@ DEFAULT_ICON_SHOW = xbmc.translatePath('special://home/addons/plugin.video.redux
 DOWNLOAD_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/download.py')
 UPDATE_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/scrape-update.py')
 
+MAINMENU = [
+    {'name':'View By Category' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Search' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Update Shows','thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+    ]
+
 CATEGORIES = [
     {'name':'All' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Channels' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Sub-Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
-    {'name':'Years' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
-    {'name':'Update Shows','thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+    {'name':'Years' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
     ]
 
 CHANNELS = [
@@ -61,6 +72,39 @@ def get_url(**kwargs):
     :rtype: str
     """
     return '{0}?{1}'.format(_url, urlencode(kwargs))
+
+def list_menu():
+    """
+    Create the list of video categories in the Kodi interface.
+    """
+
+    # Iterate through categories
+    for category in range(len(MAINMENU)):
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=MAINMENU[category]['name'])
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item.setArt({'thumb': MAINMENU[category]['thumb'],
+                          'icon': MAINMENU[category]['thumb'],
+                          'fanart': MAINMENU[category]['fanart']})
+        # Set additional info for the list item.
+        # Here we use a category name for both properties for for simplicity's sake.
+        # setInfo allows to set various information for an item.
+        # For available properties see the following link:
+        # http://mirrors.xbmc.org/docs/python-docs/15.x-isengard/xbmcgui.html#ListItem-setInfo
+        list_item.setInfo('video', {'title': MAINMENU[category]['name'], 'genre': MAINMENU[category]['name']})
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='menu', selection=MAINMENU[category]['name'])
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    # xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
 
 
 def list_categories():
@@ -92,21 +136,20 @@ def list_categories():
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
-    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    # xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
 
 def list_years():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_year_shows = sort_shows.sort_shows_by_year(all_shows)
+    all_year_shows = Year.select().order_by(Year.name)
     """
     Create the list of video categories in the Kodi interface.
     """
     i = 0
     # Iterate through categories
-    for year in all_year_shows:
+    for year_record in all_year_shows:
+        year = year_record.name
         i += 1
         # Create a list item with a text label and a thumbnail image.
         list_item = xbmcgui.ListItem(label=year)
@@ -139,16 +182,15 @@ def list_years():
     xbmcplugin.endOfDirectory(_handle)
 
 def list_subgenres():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_sub_genre_shows = sort_shows.sort_shows_by_subgenre(all_shows)
+    all_sub_genre_shows = SubGenre.select().order_by(SubGenre.name)
 
     """
     Create the list of video categories in the Kodi interface.
     """
     i = 0
     # Iterate through categories
-    for genre in all_sub_genre_shows:
+    for genre_record in all_sub_genre_shows:
+        genre = genre_record.name
         i += 1
         # Create a list item with a text label and a thumbnail image.
         list_item = xbmcgui.ListItem(label=genre)
@@ -168,15 +210,15 @@ def list_subgenres():
 
 def list_genres():
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_genre_shows = sort_shows.sort_shows_by_genre(all_shows)
+    all_genre_shows = Genre.select().order_by(Genre.name)
 
     """
     Create the list of video categories in the Kodi interface.
     """
     i = 0
     # Iterate through categories
-    for genre in all_genre_shows:
+    for genre_record in all_genre_shows:
+        genre = genre_record.name
         i += 1
         # Create a list item with a text label and a thumbnail image.
         list_item = xbmcgui.ListItem(label=genre)
@@ -229,8 +271,14 @@ def list_channels():
     xbmcplugin.endOfDirectory(_handle)
 
 def list_shows_all():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    shows = load_shows_json()
+    # script_dir = os.path.dirname(os.path.realpath(__file__))
+    # shows = load_shows_json()
+    pDialog = xbmcgui.DialogProgress()
+    pDialog.create('Retrieving Over 10,000 shows. ')
+    pDialog.update(0,"Please be patient...")
+    shows_records = Show.select().order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -250,6 +298,7 @@ def list_shows_all():
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
@@ -259,11 +308,10 @@ def list_shows_all():
     xbmcplugin.endOfDirectory(_handle)
 
 
-def list_shows_by_year(genre):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_year_shows = sort_shows.sort_shows_by_year(all_shows)
-    shows = all_year_shows[genre]
+def list_shows_by_year(year):
+    shows_records = Show.select().where(Show.year == year).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -290,10 +338,9 @@ def list_shows_by_year(genre):
 
 
 def list_shows_by_genre(genre):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_genre_shows = sort_shows.sort_shows_by_genre(all_shows)
-    shows = all_genre_shows[genre]
+    shows_records = Show.select().join(ShowGenre).join(Genre).where(Genre.name == genre).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -319,10 +366,9 @@ def list_shows_by_genre(genre):
     xbmcplugin.endOfDirectory(_handle)
 
 def list_shows_by_subgenre(genre):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_genre_shows = sort_shows.sort_shows_by_subgenre(all_shows)
-    shows = all_genre_shows[genre]
+    shows_records = Show.select().join(ShowSubGenre).join(SubGenre).where(SubGenre.name == genre).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -349,16 +395,25 @@ def list_shows_by_subgenre(genre):
 
 
 def list_shows_by_channel(channel):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    all_shows = load_shows_json()
-    all_channel_shows = sort_shows.sort_shows_by_channel(all_shows)
-    shows = all_channel_shows[channel]
-    k = 0
+    if channel == "BBC One":
+        shows_records = Show.select().where(Show.bbc1 == True).order_by(Show.title)
+    elif channel == "BBC Two":
+        shows_records = Show.select().where(Show.bbc2 == True).order_by(Show.title)
+    elif channel == "BBC Three":
+        shows_records = Show.select().where(Show.bbc3 == True).order_by(Show.title)
+    elif channel == "BBC Four":
+        shows_records = Show.select().where(Show.bbc4 == True).order_by(Show.title)
+    elif channel == "Films":
+        shows_records = Show.select().where(Show.film == True).order_by(Show.title)
+
+    shows = convert_shows_to_json(shows_records)
+    # script_dir = os.path.dirname(os.path.realpath(__file__))
+    # all_shows = load_shows_json()
+    # all_channel_shows = sort_shows.sort_shows_by_channel(all_shows)
+    # shows = all_channel_shows[channel]
+
     # Iterate through shows
     for show in shows:
-        k += 1
-        #if(k > 50):
-        #    break
         # Create a list item with a text label and a thumbnail image.
         if(shows[show]["year"]):
             list_item = xbmcgui.ListItem(label=show+" ("+shows[show]["year"]+")")
@@ -386,31 +441,29 @@ def list_shows_by_channel(channel):
     xbmcplugin.endOfDirectory(_handle)
 
 
-def list_seasons(show):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-
-    shows = load_shows_json()
+def list_seasons(show_name):
+    show_record = Show.select().where(Show.title == show_name).get()
+    show = convert_show_to_json(show_record)
 
     listings = []
 
-    if show in shows:
-        if len(shows[show]['season']) == 1:
-            list_episodes(show,next(iter(shows[show]['season'])))
-            return
-        for season in shows[show]['season']:
-            if(shows[show]['season'][season]["title"]):
-                title = "{0} ({1})".format(shows[show]['season'][season]["title"].encode("utf-8"),season)
-            else:
-                title = "Untitled ({0})".format(season)
-            list_item = xbmcgui.ListItem(label=title)
+    if len(show['season']) == 1:
+        list_episodes(show_name,next(iter(show['season'])))
+        return
+    for season in show['season']:
+        if(show['season'][season]["title"]):
+            title = "{0} ({1})".format(show['season'][season]["title"].encode("utf-8"),season)
+        else:
+            title = "Untitled ({0})".format(season)
+        list_item = xbmcgui.ListItem(label=title)
 
-            set_season_metadata(shows[show],season,list_item)
+        set_season_metadata(show,season,list_item)
 
-            url = get_url(action='episode_listing', show=show, season=season)
-            # is_folder = True means that this item opens a sub-list of lower level items.
-            is_folder = True
-            # Add our item to the Kodi virtual folder listing.
-            listings.append((url, list_item, is_folder))
+        url = get_url(action='episode_listing', show=show_name, season=season)
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        listings.append((url, list_item, is_folder))
     xbmcplugin.addDirectoryItems(_handle, listings, len(listings))
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
@@ -419,29 +472,27 @@ def list_seasons(show):
 
     shows = None
 
-def list_episodes(show, season):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-
-    shows = load_shows_json()
+def list_episodes(show_name, season):
+    show_record = Show.select().where(Show.title == show_name).get()
+    show = convert_show_to_json(show_record)
 
     listings = []
-    if show in shows:
-        for episode in shows[show]['season'][season]['episode']:
-            if(shows[show]['season'][season]['episode'][episode]["title"]):
-                title = "E{0} {1}".format(episode,shows[show]['season'][season]['episode'][episode]["title"].encode("utf-8"))
-            else:
-                title = "E{0}".format(episode)
-            list_item = xbmcgui.ListItem(label=title)
+    for episode in show['season'][season]['episode']:
+        if(show['season'][season]['episode'][episode]["title"]):
+            title = "E{0} {1}".format(episode,show['season'][season]['episode'][episode]["title"].encode("utf-8"))
+        else:
+            title = "E{0}".format(episode)
+        list_item = xbmcgui.ListItem(label=title)
 
-            list_item = set_episode_metadata(shows[show],season,episode,list_item)
+        list_item = set_episode_metadata(show,season,episode,list_item)
 
-            list_item.setProperty('IsPlayable', 'true')
-            url = get_url(action='play_episode', show=show.encode("utf-8"), season=season, episode=episode)
-            # is_folder = True means that this item opens a sub-list of lower level items.
-            is_folder = False
+        list_item.setProperty('IsPlayable', 'true')
+        url = get_url(action='play_episode', show=show_name.encode("utf-8"), season=season, episode=episode)
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = False
 
-            listings.append((url, list_item, is_folder))
-            # Add our item to the Kodi virtual folder listing.
+        listings.append((url, list_item, is_folder))
+        # Add our item to the Kodi virtual folder listing.
 
     xbmcplugin.addDirectoryItems(_handle, listings, len(listings))
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
@@ -510,22 +561,6 @@ def play_episode(show, season, episode):
     play_item = xbmcgui.ListItem(path=url)
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
-
-def load_shows_json(location = None):
-    print("Loading Shows")
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    if location == None:
-        location = "{0}/shows.pickle".format(script_dir)
-    if os.path.isfile(location):
-        f = open( location, "rb" )
-        shows = pickle.load( f )
-        shows = shows["shows"]
-        f.close()
-        print("Finished Loading Shows (Success)")
-        return shows
-    else:
-        print("Finished Loading Shows (Fail)")
-        return None
 
 def set_season_metadata(show,season,list_item):
     show_season = show["season"][season]
@@ -698,6 +733,45 @@ def set_show_metadata(show, list_item):
 def update_shows():
     xbmc.executescript(UPDATE_SCRIPT)
 
+def search_for_shows():
+    dialog = xbmcgui.Dialog()
+    search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
+    if search_term == '':
+        return
+    # script_dir = os.path.dirname(os.path.realpath(__file__))
+    # shows = load_shows_json()
+
+    shows_records = Show.select().where(Show.title.contains(search_term))
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        if(shows[show]["year"]):
+            list_item = xbmcgui.ListItem(label=show+" ("+shows[show]["year"]+")")
+        else:
+            list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item = set_show_metadata(shows[show], list_item)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
 def router(paramstring):
     """
     Router function that calls other functions
@@ -711,7 +785,17 @@ def router(paramstring):
     params = dict(parse_qsl(paramstring))
     # Check the parameters passed to the plugin
     if params:
-        if params['action'] == 'listing':
+        if params['action'] == 'menu':
+            if params['selection'] == 'View By Category':
+                list_categories()
+            elif params['selection'] == "Update Shows":
+                update_shows()
+            elif params['selection'] == "Search":
+                search_for_shows()
+            else:
+                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+
+        elif params['action'] == 'listing':
             # Display the list of videos in a provided category.
             if params['category'] == 'Channels':
                 list_channels()
@@ -723,8 +807,6 @@ def router(paramstring):
                 list_subgenres()
             elif params['category'] == "Years":
                 list_years()
-            elif params['category'] == "Update Shows":
-                update_shows()
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
         elif params['action'] == 'show_listing':
@@ -753,10 +835,17 @@ def router(paramstring):
     else:
         # If the plugin is called from Kodi UI without any parameters,
         # display the list of video categories
-        list_categories()
+        list_menu()
 
 
 if __name__ == '__main__':
+    # Connect to Database
+    db = BaseModel._meta.database
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    db.init("{0}/shows.db".format(script_dir))
+    db.connect()
     # Call the router function and pass the plugin call parameters to it.
     # We use string slicing to trim the leading '?' from the plugin call paramstring
     router(sys.argv[2][1:])
+    # Close Database
+    db.close()
