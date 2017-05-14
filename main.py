@@ -11,7 +11,7 @@ import xbmcgui
 import xbmcplugin
 
 from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
-from lib.database_functions import convert_shows_to_json, convert_show_to_json
+from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, create_database
 
 import os
 try:
@@ -31,15 +31,24 @@ _handle = int(sys.argv[1])
 DEFAULT_FANART = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/fanart.jpg')
 DEFAULT_ICON = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/lists.png')
 DEFAULT_ICON_SHOW = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/no_icon.png')
+SEARCH_ICON = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/search.png')
 
 DOWNLOAD_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/download.py')
 UPDATE_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/scrape-update.py')
 
 MAINMENU = [
     {'name':'View By Category' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
-    {'name':'Search' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
-    {'name':'Update Shows','thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+    {'name':'Search', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Update Shows Database',
+        'thumb': xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/update.png'),
+        'fanart': DEFAULT_FANART}
     ]
+
+SEARCHMENU = [
+    {'name':'Search (By Name)', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Search (By Name, Desc, Actors)', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Advanced Search', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART}
+]
 
 CATEGORIES = [
     {'name':'All' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
@@ -72,6 +81,39 @@ def get_url(**kwargs):
     :rtype: str
     """
     return '{0}?{1}'.format(_url, urlencode(kwargs))
+
+def list_search():
+    """
+    Create the list of video categories in the Kodi interface.
+    """
+
+    # Iterate through categories
+    for category in range(len(SEARCHMENU)):
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=SEARCHMENU[category]['name'])
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item.setArt({'thumb': SEARCHMENU[category]['thumb'],
+                          'icon': SEARCHMENU[category]['thumb'],
+                          'fanart': SEARCHMENU[category]['fanart']})
+        # Set additional info for the list item.
+        # Here we use a category name for both properties for for simplicity's sake.
+        # setInfo allows to set various information for an item.
+        # For available properties see the following link:
+        # http://mirrors.xbmc.org/docs/python-docs/15.x-isengard/xbmcgui.html#ListItem-setInfo
+        list_item.setInfo('video', {'title': SEARCHMENU[category]['name'], 'genre': SEARCHMENU[category]['name']})
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='search', selection=SEARCHMENU[category]['name'])
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    # xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
 
 def list_menu():
     """
@@ -733,6 +775,163 @@ def set_show_metadata(show, list_item):
 def update_shows():
     xbmc.executescript(UPDATE_SCRIPT)
 
+def advanced_search_for_shows():
+    dialog = xbmcgui.Dialog()
+    search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
+
+    query = True
+    query_set = False
+
+    if search_term != "":
+        query_set = True
+        regex = False
+        if(search_term[0:3]=="-r "):
+            regex = True
+
+        if(regex == True):
+            query = query & (Show.title.regexp(search_term[3:len(search_term)]))
+        else:
+            query = query & (Show.title.contains(search_term))
+
+    channel_list = ["All"]
+    for channel in CHANNELS:
+        channel_list.append(channel["name"])
+
+    dialog = xbmcgui.Dialog()
+    channel_selections = dialog.select("Choose Channel", channel_list)
+
+    if channel_selections > 0:
+        query_set = True
+        if channel_selections == 1:
+            query = query & (Show.bbc1==True )
+        elif channel_selections == 2:
+            query = query & (Show.bbc2==True )
+        elif channel_selections == 3:
+            query = query & (Show.bbc3==True )
+        elif channel_selections == 4:
+            query = query & (Show.bbc4==True )
+        elif channel_selections == 5:
+            query = query & (Show.film==True )
+
+    genre_record_list = Genre.select()
+    sub_genre_record_list = SubGenre.select()
+    genre_list = []
+    for genre_record in genre_record_list:
+        genre_list.append(genre_record.name)
+    for genre_record in sub_genre_record_list:
+        genre_list.append(genre_record.name)
+    genre_list.sort()
+    genre_list = ["All"] + genre_list
+
+    dialog = xbmcgui.Dialog()
+    genre_selections = dialog.select("Choose Genre", genre_list)
+
+    if genre_selections > 0:
+        query_set = True
+        query = query & (
+            Genre.name==genre_list[genre_selections] |
+            SubGenre.name==genre_list[genre_selections]
+         )
+
+    year_record_list = Year.select()
+    year_list = ["All"]
+    for year_record in year_record_list:
+        year_list.append(year_record.name)
+
+    dialog = xbmcgui.Dialog()
+    year_selections = dialog.select("Choose Year", year_list)
+
+    if year_selections > 0:
+        query_set = True
+        query = query & (
+            Show.year==year_list[year_selections]
+         )
+
+    shows_records = Show.select().join(ShowGenre).join(Genre).switch(Show).join(ShowSubGenre).join(SubGenre).where(query)
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        if(shows[show]["year"]):
+            list_item = xbmcgui.ListItem(label=show+" ("+shows[show]["year"]+")")
+        else:
+            list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item = set_show_metadata(shows[show], list_item)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def search_for_shows_vague():
+    dialog = xbmcgui.Dialog()
+    search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
+    if search_term == '':
+        return
+    # script_dir = os.path.dirname(os.path.realpath(__file__))
+    # shows = load_shows_json()
+
+    regex = False
+    if(search_term[0:3]=="-r "):
+        regex = True
+
+    if(regex == True):
+        shows_records = Show.select().join(ShowActor).join(Actor).where(
+            (Show.title.regexp(search_term[3:len(search_term)])) |
+            (Show.summary.regexp(search_term[3:len(search_term)])) |
+            (Actor.name.regexp(search_term[3:len(search_term)]))
+        )
+    else:
+        shows_records = Show.select().join(ShowActor).join(Actor).where(
+            (Show.title.contains(search_term)) |
+            (Show.summary.contains(search_term)) |
+            (Actor.name.contains(search_term))
+        )
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        if(shows[show]["year"]):
+            list_item = xbmcgui.ListItem(label=show+" ("+shows[show]["year"]+")")
+        else:
+            list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item = set_show_metadata(shows[show], list_item)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
 def search_for_shows():
     dialog = xbmcgui.Dialog()
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
@@ -741,7 +940,14 @@ def search_for_shows():
     # script_dir = os.path.dirname(os.path.realpath(__file__))
     # shows = load_shows_json()
 
-    shows_records = Show.select().where(Show.title.contains(search_term))
+    regex = False
+    if(search_term[0:3]=="-r "):
+        regex = True
+
+    if(regex == True):
+        shows_records = Show.select().where(Show.title.regexp(search_term[3:len(search_term)]))
+    else:
+        shows_records = Show.select().where(Show.title.contains(search_term))
     shows = convert_shows_to_json(shows_records)
 
     # Iterate through shows
@@ -788,13 +994,25 @@ def router(paramstring):
         if params['action'] == 'menu':
             if params['selection'] == 'View By Category':
                 list_categories()
-            elif params['selection'] == "Update Shows":
+            elif params['selection'] == "Update Shows Database":
+                dialog = xbmcgui.Dialog()
+                dialog.ok('Update Shows Database', 'This feature has been disabled due to it being broken by shutdown of BBC /programmes schedules API. A workaround is in development.')
+                return 
                 update_shows()
             elif params['selection'] == "Search":
-                search_for_shows()
+                list_search()
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
 
+        elif params['action'] == 'search':
+            if params['selection'] == 'Search (By Name)':
+                search_for_shows()
+            elif params['selection'] == 'Search (By Name, Desc, Actors)':
+                search_for_shows_vague()
+            elif params['selection'] == 'Advanced Search':
+                advanced_search_for_shows()
+            else:
+                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
         elif params['action'] == 'listing':
             # Display the list of videos in a provided category.
             if params['category'] == 'Channels':
@@ -838,14 +1056,65 @@ def router(paramstring):
         list_menu()
 
 
-if __name__ == '__main__':
-    # Connect to Database
-    db = BaseModel._meta.database
+SEARCHMENU = [
+    {'name':'Search (By Name)', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Search (By Name, Desc, Actors)', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Advanced Search', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART}
+]
+
+def load_shows_json(location = None):
+    print("Loading Shows")
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    db.init("{0}/shows.db".format(script_dir))
-    db.connect()
-    # Call the router function and pass the plugin call parameters to it.
-    # We use string slicing to trim the leading '?' from the plugin call paramstring
-    router(sys.argv[2][1:])
-    # Close Database
-    db.close()
+    if location == None:
+        location = "{0}/shows.pickle".format(script_dir)
+    if os.path.isfile(location):
+        f = open( location, "rb" )
+        shows = pickle.load( f )
+        shows = shows["shows"]
+        f.close()
+        print("Finished Loading Shows (Success)")
+        return shows
+    else:
+        print("Finished Loading Shows (Fail)")
+        return None
+
+def check_for_database(db_path,pickle_path):
+    if( os.path.isfile(db_path)):
+        return True
+    if(os.path.isfile(pickle_path)):
+        pDialog = xbmcgui.DialogProgress()
+        pDialog.create('Creating Databasse', 'Loading Shows...')
+        shows = load_shows_json()
+        if(shows == None):
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Loading Data', 'Found pickled data but it is corrupted', "Failed File: {0}".format(pickle_path))
+            return False
+
+        pDialog.update(20,"Loading Shows... Done","Initialising Database...")
+        db = BaseModel._meta.database
+        db.init(db_path)
+        create_database()
+        pDialog.update(40,"Initialising Database... Done", "Populating Database...")
+        populate_database(shows, pDialog)
+        pDialog.update(100,"Populating Database... Done", "", "")
+        return True
+
+    dialog = xbmcgui.Dialog()
+    dialog.ok('Loading Data', 'Could not find a database of shows', "Expected: {0} to exist".format(pickle_path))
+    return False
+
+if __name__ == '__main__':
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    database_path = "{0}/shows.db".format(script_dir)
+    pickle_path = "{0}/shows.pickle".format(script_dir)
+
+    if(check_for_database(database_path,pickle_path)):
+        # Connect to Database
+        db = BaseModel._meta.database
+        db.init(database_path)
+        db.connect()
+        # Call the router function and pass the plugin call parameters to it.
+        # We use string slicing to trim the leading '?' from the plugin call paramstring
+        router(sys.argv[2][1:])
+        # Close Database
+        db.close()

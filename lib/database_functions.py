@@ -38,7 +38,7 @@ def create_database():
             print("{0} table created".format(table[1]))
     db.close()
 
-def populate_database(shows):
+def populate_database(shows, pDialog= None):
     db = BaseModel._meta.database
     db.connect()
 
@@ -161,21 +161,33 @@ def populate_database(shows):
             show_link_db_list.append(showactor)
 
     with db.atomic():
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Shows...")
         for show in show_db_list:
             show.save()
         print("Shows Saved")
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Genres...")
         for genre_key in genre_db_dict:
             genre_db_dict[genre_key].save()
         print("Genres Saved")
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Actors...")
         for actor_key in actor_db_dict:
             actor_db_dict[actor_key].save()
         print("Actors Saved")
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Sub-Genres...")
         for sub_genre_key in sub_genre_db_dict:
             sub_genre_db_dict[sub_genre_key].save()
         print("Sub Genres Saved")
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Years...")
         for year_key in year_db_dict:
             year_db_dict[year_key].save()
         print("Years Saved")
+        if pDialog:
+            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Links...")
         for showlink in show_link_db_list:
             showlink.save()
         print("Links Saved")
