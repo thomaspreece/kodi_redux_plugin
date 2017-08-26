@@ -13,6 +13,9 @@ from dateutil import parser
 import time
 
 import util
+from bs4 import BeautifulSoup
+
+import code
 
 import glob
 
@@ -31,6 +34,213 @@ def save_shows(shows, location = "shows.pickle"):
     else:
         raise ValueError("No Shows Provided")
 
+def fill_out_schedule(service,date,schedule_list, script_prefix =""):
+    EPISODE_FOLDER = "{0}episode-scrape-bbc".format(script_prefix)
+    schedule = {}
+    schedule["service"] = {}
+    schedule["service"]["type"] = "tv"
+    schedule["service"]["key"] = service
+    if(service == "bbcfour"):
+        schedule["service"]["title"] = "BBC Four"
+    if(service == "bbctwo"):
+        schedule["service"]["title"] = "BBC Two"
+        schedule["service"]["outlet"] = {
+            "key": "england",
+            "title": "England"
+        }
+    if(service == "bbcone"):
+        schedule["service"]["title"] = "BBC One"
+        schedule["service"]["outlet"] = {
+            "key": "london",
+            "title": "London"
+        }
+    schedule["day"] = {}
+    schedule["day"]["date"] = date
+    schedule["day"]["has_next"] = 1
+    schedule["day"]["has_previous"] = 1
+    schedule["day"]["broadcasts"] = []
+    broadcasts = schedule["day"]["broadcasts"]
+
+    for schedule_item in schedule_list:
+        if(not os.path.isfile("{0}/{1}.json".format(EPISODE_FOLDER, schedule_item["pid"]))):
+            print("Could not find episode info: {0}".format(schedule_item["pid"]))
+            return -1
+        try:
+            json_content = json.load(open("{0}/{1}.json".format(EPISODE_FOLDER, schedule_item["pid"])))
+        except:
+            print("")
+            print(schedule_list)
+            print("Failed to parse {0}".format(schedule_item["pid"]))
+            return -1
+        broadcast = {}
+        if("first_broadcast_date" in json_content["programme"] and json_content["programme"]["first_broadcast_date"] == schedule_item["datetime"]):
+            broadcast["is_repeat"] = False
+        else:
+            broadcast["is_repeat"] = True
+        broadcast["is_blanked"] = False
+        broadcast["start"] = schedule_item["datetime"]
+        broadcast["end"] = schedule_item["end_datetime"]
+        duration = abs((parser.parse(schedule_item["end_datetime"]) - parser.parse(schedule_item["datetime"])).seconds)
+
+        broadcast["duration"] = duration
+        broadcast["programme"] = {k: json_content["programme"][k] for k in json_content["programme"] if k not in (
+            'parent', 'peers', 'versions', 'links', 'supporting_content_items', 'categories')}
+        if("parent" in json_content["programme"]):
+            broadcast["programme"]["programme"] = json_content["programme"]["parent"]["programme"]
+            if("parent" in json_content["programme"]["parent"]["programme"]):
+                broadcast["programme"]["programme"]["programme"] = json_content["programme"]["parent"]["programme"]["parent"]["programme"]
+
+        broadcasts.append(broadcast)
+    return {"schedule": schedule}
+
+def convert_html_schedules(script_prefix=""):
+    SCHEDULE_FOLDER = "{0}schedule-scrape-bbc".format(script_prefix)
+    renameFiles = []
+    print("")
+    print("Converting HTML: {0}/*".format(SCHEDULE_FOLDER))
+    # for schedule_folder in sorted(glob.glob("{0}/*".format(SCHEDULE_FOLDER))):
+    #     for html_file in sorted(glob.glob(schedule_folder+"/*.old_html")):
+    #          html_file_datetime = parser.parse(html_file.rsplit('/')[-1][0:10])
+    #          html_file_date = parser.parse(html_file.rsplit('/')[-1][0:10]).strftime("%Y-%m-%d")
+    #          html_file_service = html_file.rsplit('/')[-1][11:-9]
+    #          html_file_path = html_file.rsplit('/', 1)[0]
+    #
+    #          new_json_file = html_file_path+"/"+html_file_date+"-"+html_file_service+".json"
+    #          os.remove(new_json_file)
+    #          os.rename(html_file,html_file_path+"/"+html_file_date+"-"+html_file_service+".html")
+
+    for schedule_folder in sorted(glob.glob("{0}/*".format(SCHEDULE_FOLDER))):
+        for html_file in sorted(glob.glob(schedule_folder+"/*.html")):
+            schedule_item_list = []
+            html_file_datetime = parser.parse(html_file.rsplit('/')[-1][0:10])
+            html_file_date = parser.parse(html_file.rsplit('/')[-1][0:10]).strftime("%Y-%m-%d")
+            html_file_service = html_file.rsplit('/')[-1][11:-5]
+            html_file_path = html_file.rsplit('/', 1)[0]
+
+            new_json_file = html_file_path+"/"+html_file_date+"-"+html_file_service+".json"
+            if(not os.path.isfile(new_json_file)):
+
+                print(html_file_date+"-"+html_file_service)
+
+                previous_html_file_date = (html_file_datetime - timedelta(days=1)).strftime("%Y-%m-%d")
+                previous_html_file = html_file_path+"/"+previous_html_file_date+"-"+html_file_service+".html"
+
+                next_html_file_date = (html_file_datetime + timedelta(days=1)).strftime("%Y-%m-%d")
+                next_html_file = html_file_path+"/"+next_html_file_date+"-"+html_file_service+".html"
+                # if(not os.path.isfile(previous_html_file)):
+                #     previous_html_file = previous_html_file[0:-5]+".old_html"
+                if(os.path.isfile(previous_html_file) and os.path.isfile(next_html_file)):
+                    bs_current = BeautifulSoup(open(html_file), "lxml")
+                    bs_previous = BeautifulSoup(open(previous_html_file), "lxml")
+                    current_schedule_items = bs_current.find_all("div", class_="broadcast")
+                    previous_schedule_items = bs_previous.find_all("div", class_="broadcast")
+                    next_schedule_first_item_time = None
+
+                    bs_next = BeautifulSoup(open(next_html_file), "lxml")
+                    next_schedule_items = bs_next.find_all("div", class_="broadcast")
+                    for schedule_item in next_schedule_items:
+                        schedule_item_time_html = schedule_item.find("h3", class_="broadcast__time")
+                        schedule_item_offair_html = schedule_item.find("div", class_="broadcast__live")
+                        if(schedule_item_offair_html == None or schedule_item_offair_html.get_text() != "Off air"):
+                            next_schedule_first_item_time = schedule_item_time_html.get("content")
+                            break
+                    for schedule_item in previous_schedule_items:
+                        schedule_item_time_html = schedule_item.find("h3", class_="broadcast__time")
+                        schedule_item_offair_html = schedule_item.find("div", class_="broadcast__live")
+                        if(schedule_item_offair_html == None or schedule_item_offair_html.get_text() != "Off air"):
+                            schedule_item_time = schedule_item_time_html.get("content")
+                            if(schedule_item_time[0:10] == html_file_date):
+                                schedule_item_links = schedule_item.findAll("a")
+                                if len(schedule_item_links) == 0:
+                                    raise ValueError("Invalid Link")
+                                pid_found = False
+                                for link_ind in range(len(schedule_item_links)):
+                                    schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
+                                    schedule_item_pid = schedule_item_pid.rsplit("#")[0]
+                                    if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p") and len(schedule_item_pid) == 8):
+                                        schedule_item_list.append({
+                                            "datetime": schedule_item_time,
+                                            "pid": schedule_item_pid,
+                                        })
+                                        pid_found = True
+                                        break
+                                if(pid_found == False):
+                                    print(schedule_item)
+                                    for link_ind in range(len(schedule_item_links)):
+                                        schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
+                                        schedule_item_pid = schedule_item_pid.rsplit("#")[0]
+                                        print(schedule_item_pid)
+                                    raise ValueError("Invalid PID!")
+                    for schedule_item in current_schedule_items:
+                        schedule_item_time_html = schedule_item.find("h3", class_="broadcast__time")
+                        schedule_item_offair_html = schedule_item.find("div", class_="broadcast__live")
+                        if(schedule_item_offair_html == None or schedule_item_offair_html.get_text() != "Off air"):
+                            schedule_item_time = schedule_item_time_html.get("content")
+                            schedule_item_links = schedule_item.findAll("a")
+                            if len(schedule_item_links) == 0:
+                                raise ValueError("Invalid Link")
+                            pid_found = False
+                            for link_ind in range(len(schedule_item_links)):
+                                schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
+                                schedule_item_pid = schedule_item_pid.rsplit("#")[0]
+                                if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p") and len(schedule_item_pid) == 8):
+                                    schedule_item_list.append({
+                                        "datetime": schedule_item_time,
+                                        "pid": schedule_item_pid,
+                                    })
+                                    pid_found = True
+                                    break
+                            if(pid_found == False):
+                                print(schedule_item)
+                                for link_ind in range(len(schedule_item_links)):
+                                    schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
+                                    schedule_item_pid = schedule_item_pid.rsplit("#")[0]
+                                    print(schedule_item_pid)
+                                raise ValueError("Invalid PID!")
+
+                    for i in range(len(schedule_item_list)-1):
+                        schedule_item_list[i]["end_datetime"] = schedule_item_list[i+1]["datetime"]
+                    for i in range(len(schedule_item_list)-1,-1,-1):
+                        if(schedule_item_list[i]["datetime"][0:10] != html_file_date):
+                            del schedule_item_list[i]
+                    for i in range(len(schedule_item_list)):
+                        if(not "end_datetime" in schedule_item_list[i]):
+                            if(i == len(schedule_item_list)-1 and next_schedule_first_item_time != None):
+                                schedule_item_list[i]["end_datetime"] = next_schedule_first_item_time
+                            else:
+                                print(schedule_item_list)
+                                print(next_schedule_first_item_time)
+                                raise ValueError("Invalid Schedule Item")
+                    complete_schedule = fill_out_schedule(html_file_service, html_file_date, schedule_item_list, script_prefix)
+
+                    new_json_file = html_file_path+"/"+html_file_date+"-"+html_file_service+".json"
+                    if(complete_schedule == -1):
+                        print("Error getting schedule info")
+                    else:
+                        with open(new_json_file, 'w') as outfile:
+                            json.dump(complete_schedule, outfile)
+                        renameFiles.append(html_file)
+                else:
+                    print("No previous and/or next file")
+
+    # for rfile in renameFiles:
+    #     os.rename(rfile, rfile[0:-5]+".old_html")
+    #         for schedule_item in schedule_items:
+    #             schedule_item_time_html = schedule_item.find("h3", class_="broadcast__time")
+    #             schedule_item_offair_html = schedule_item.find("div", class_="broadcast__live")
+    #             if(schedule_item_offair_html == None or schedule_item_offair_html.get_text() != "Off air"):
+    #                 schedule_item_time = schedule_item_time_html.get("content")
+    #                 schedule_item_link = schedule_item.find("a")
+    #                 if schedule_item_link == None:
+    #                     raise ValueError("Invalid Link")
+    #                 schedule_item_pid = schedule_item_link.get("href").rsplit('/')[-1]
+    #                 if(schedule_item_pid[0] != "b" and len(schedule_item_pid) != 8):
+    #                     raise ValueError("Invalid PID!")
+    #                 # schedule_item_pid_list.append(schedule_item_pid)
+    #                 schedule_item_pid_list.append([SCRAPE_URL+"programmes/{0}.json".format(schedule_item_pid), "{0}/{1}.json".format(SAVE_FOLDER,schedule_item_pid), "Saved: {0}".format(schedule_item_pid)])
+    #
+    # return schedule_item_pid_list
+
 def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_prefix=""):
     SCRAPE_FOLDER = "{0}schedule-scrape-bbc".format(script_prefix)
     BASE_FANART_URL = "https://ichef.bbci.co.uk/images/ic/640x360/"
@@ -42,10 +252,14 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
     shows = shows["shows"]
     print("")
     print("Parsing {0}/*".format(SCRAPE_FOLDER))
+    initial_latest_parse = latest_parse
 
     k = 0
     for schedule_folder in sorted(glob.glob("{0}/*".format(SCRAPE_FOLDER))):
         for json_file in sorted(glob.glob(schedule_folder+"/*.json")):
+            json_file_date = parser.parse(json_file.rsplit('/')[-1][0:10])
+            if(initial_latest_parse != None and json_file_date > initial_latest_parse):
+                continue
             k = k + 1
             if(k > 50):
                 k = 0
@@ -246,7 +460,8 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                 break
             else:
                 continue
-    shows = resolve_repeats(shows)
+    if(k != 0):
+        shows = resolve_repeats(shows)
     return {"shows": shows, "parsed": latest_parse.strftime('%Y-%m-%d'), "failed_files": failed_files}
 
 def resolve_repeats(shows):
@@ -338,14 +553,14 @@ def merge_shows_files(shows, script_prefix=""):
 
     k = 0
     for show_key in shows:
+        show = shows[show_key]
+        if show["show_merged"] == True:
+            continue
         k = k + 1
         if(k > 50):
             k = 0
             sys.stdout.write('.')
             sys.stdout.flush()
-        show = shows[show_key]
-        if show["show_merged"] == True:
-            continue
         pid = show["pid"]
         if(not pid):
             pid = show["season"].values()[0]["pid"]
@@ -438,14 +653,14 @@ def merge_tvdb_files(shows, script_prefix=""):
 
     k = 0
     for show_key in shows:
+        show = shows[show_key]
+        if show["tvdb_merged"] == True or show["type"] == "Films":
+            continue
         k = k + 1
         if(k > 50):
             k = 0
             sys.stdout.write('.')
             sys.stdout.flush()
-        show = shows[show_key]
-        if show["tvdb_merged"] == True:
-            continue
         pid = show["pid"]
         if(not pid):
             pid = show["season"].values()[0]["pid"]
@@ -510,14 +725,14 @@ def merge_moviedb_files(shows, script_prefix=""):
 
     k = 0
     for show_key in shows:
+        show = shows[show_key]
+        if show["moviedb_merged"] == True or show["type"] != "Films":
+            continue
         k = k + 1
         if(k > 50):
             k = 0
             sys.stdout.write('.')
             sys.stdout.flush()
-        show = shows[show_key]
-        if show["moviedb_merged"] == True or show["type"] != "Films":
-            continue
         pid = show["pid"]
         if(not pid):
             pid = show["season"].values()[0]["pid"]
@@ -562,16 +777,16 @@ def merge_imdb_files(shows, script_prefix=""):
 
     k = 0
     for show_key in shows:
-        k = k + 1
-        if(k > 50):
-            k = 0
-            sys.stdout.write('.')
-            sys.stdout.flush()
         show = shows[show_key]
         if show["imdb_merged"] == True:
             continue
         if len(show["poster"]) > 0:
             continue
+        k = k + 1
+        if(k > 50):
+            k = 0
+            sys.stdout.write('.')
+            sys.stdout.flush()
         pid = show["pid"]
         if(not pid):
             pid = show["season"].values()[0]["pid"]

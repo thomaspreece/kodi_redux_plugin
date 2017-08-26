@@ -33,7 +33,7 @@ def download_files(download_list):
                 start_time -= (CALLTIME*1000)
 
             try:
-                response = requests.get(url, timeout=3)
+                response = requests.get(url, timeout=5)
                 #response = urllib2.urlopen(url,None,5)
                 #json = response.read()
                 json = response.content
@@ -44,10 +44,11 @@ def download_files(download_list):
                 output_file_handle.close()
 
                 CallsMade += 1
-            except:
+            except Exception as e:
                 #Server Returned an Error Code
                 print("Connection Timeout Error, Sleeping...")
-                sleep(3)
+                print("({0})".format(e))
+                sleep(1)
                 continue
             break
         print("{0}".format(complete_message))

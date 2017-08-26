@@ -7,6 +7,7 @@ import xbmcgui
 import xbmcaddon
 
 import sys
+import os
 
 def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
     episode_json = show_json["season"][season_num]["episode"][episode_num]
@@ -119,8 +120,11 @@ class ReduxAccount():
             return self.token
 
     def getReduxLogin(self):
-        with open(self.loginfile, 'rt') as fID:
-            self.token = fID.readline().split('\n')[0]
+        if(os.path.isfile(self.loginfile)):
+            with open(self.loginfile, 'rt') as fID:
+                self.token = fID.readline().split('\n')[0]
+        else:
+            self.token = ''
 
     def writeReduxLogin(self):
         with open(self.loginfile, 'wt') as fID:
