@@ -241,15 +241,26 @@ def convert_html_schedules(script_prefix=""):
     #
     # return schedule_item_pid_list
 
-def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_prefix=""):
+def add_show_to_resents(recents, show_title, recent_type, max_recents = 50):
+    recents[:] = [d for d in recents if d.get('name') != show_title]
+    recents.append({
+        "name": show_title,
+        "type": recent_type
+    })
+    if(len(recents) > max_recents):
+        difference = max_recents - len(recents)
+        recents = recents[difference:(len(recents)-1)]
+    return recents
+
+def get_shows(shows_obj, script_prefix=""):
     SCRAPE_FOLDER = "{0}schedule-scrape-bbc".format(script_prefix)
     BASE_FANART_URL = "https://ichef.bbci.co.uk/images/ic/640x360/"
-    if shows["parsed"] != None:
-        latest_parse = parser.parse(shows["parsed"])
+    if shows_obj["parsed"] != None:
+        latest_parse = parser.parse(shows_obj["parsed"])
     else:
         latest_parse = None
-    failed_files = shows["failed_files"]
-    shows = shows["shows"]
+    failed_files = shows_obj["failed_files"]
+    shows = shows_obj["shows"]
     print("")
     print("Parsing {0}/*".format(SCRAPE_FOLDER))
     initial_latest_parse = latest_parse
@@ -374,6 +385,7 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                         season_pid = None
                         season_image = None
 
+                    show_added_to_recents = False
                     if(not (show_title in shows)):
                         shows[show_title] = {
                             "title": show_title,
@@ -388,7 +400,8 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                             "poster": [],
                             "banner": []
                         }
-
+                        shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_show")
+                        show_added_to_recents = True
                     if(not (season_number in shows[show_title]["season"])):
                         shows[show_title]["season"][season_number] = {
                             "number": season_number,
@@ -397,6 +410,8 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                             "image": season_image,
                             "episode": {}
                         }
+                        if(show_added_to_recents != True):
+                            shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_season")
 
                     if(episode_number != None and (two_pronged_episode_number or not two_pronged_episode_number_unknown)):
                         if(not (episode_number in shows[show_title]["season"][season_number]["episode"])):
@@ -462,7 +477,10 @@ def get_shows(shows = {"shows": {}, "parsed": None, "failed_files": []}, script_
                 continue
     if(k != 0):
         shows = resolve_repeats(shows)
-    return {"shows": shows, "parsed": latest_parse.strftime('%Y-%m-%d'), "failed_files": failed_files}
+    shows_obj["shows"] = shows
+    shows_obj["parsed"] = latest_parse.strftime('%Y-%m-%d')
+    shows_obj["failed_files"] = failed_files
+    return shows_obj
 
 def resolve_repeats(shows):
     k=0
@@ -546,7 +564,8 @@ def resolve_repeats(shows):
 
     return shows
 
-def merge_shows_files(shows, script_prefix=""):
+def merge_shows_files(showsObj, script_prefix=""):
+    shows = showsObj["shows"]
     SCRAPE_FOLDER = "{0}show-scrape-bbc".format(script_prefix)
     print("")
     print("Parsing {0}/*".format(SCRAPE_FOLDER))
@@ -630,6 +649,12 @@ def merge_shows_files(shows, script_prefix=""):
                         print(categories[i])
                         print(pid)
                         raise ValueError("Unknown Type")
+                for genre in show["genres"]:
+                    if(not genre in showsObj["genres"]):
+                        showsObj["genres"][genre] = []
+                    for subgenre in show["sub-genres"]:
+                        if(not subgenre in showsObj["genres"][genre]):
+                            showsObj["genres"][genre].append(subgenre)
             else:
                 show["summary"] = ""
                 show["summary_short"] = None

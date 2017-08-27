@@ -33,7 +33,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("")
         print("Loading Shows")
 
-    shows = {"shows": {}, "parsed": None, "failed_files": []}
+    shows = {"shows": {}, "parsed": None, "failed_files": [], "genres": {}, "recent": []}
 
     if os.path.isfile("{0}/shows.pickle".format(script_dir)):
         shows = parseSchedule.load_shows("{0}/shows.pickle".format(script_dir))
@@ -126,7 +126,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("")
         print("Parsing Shows")
 
-    shows["shows"] = parseSchedule.merge_shows_files(shows["shows"], script_dir+"/")
+    shows["shows"] = parseSchedule.merge_shows_files(shows, script_dir+"/")
 
     if(xbmc):
         pDialog.update(50,"Parsing Shows...Done","Creating TVDB Download List...")
