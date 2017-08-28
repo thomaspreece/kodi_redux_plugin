@@ -1,6 +1,7 @@
 import os
 
 from datetime import date
+from dateutil import parser
 
 import sys
 import signal
@@ -15,6 +16,9 @@ import download_moviedb_single
 import download_imdb_single
 import download_lists
 import parseSchedule
+from database_schema import BaseModel, LastUpdate
+from database_functions import populate_database, create_database
+
 try:
     xbmc_libraries_loaded = True
     import xbmcgui
@@ -234,6 +238,56 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         if os.path.isdir("{0}/show-scrape-bbc/".format(script_dir)):
             shutil.rmtree("{0}/show-scrape-bbc/".format(script_dir))
         pDialog.close()
+
+    db_file = "{0}/shows.db".format(script_dir)
+
+    if(os.path.isfile(db_file)):
+        try:
+            db = BaseModel._meta.database
+            db.init(db_file)
+            db.connect()
+            last_update_query = LastUpdate.select()
+
+            last_update = last_update_query[0].date
+            # Close Database
+            db.close()
+            db_update_date = parser.parse(last_update)
+            json_update_date = parser.parse(shows["parsed"])
+        except:
+            print("")
+            print("Invalid DB File")
+            os.remove(db_file)
+            
+    if(not os.path.isfile(db_file) or db_update_date < json_update_date):
+        if(xbmc):
+            pDialog = xbmcgui.DialogProgress()
+            pDialog.create('Creating Database', 'Initialising Database...')
+        else:
+            print("")
+            print("Creating Database")
+
+        if(os.path.isfile(db_file)):
+            os.remove(db_file)
+        db = BaseModel._meta.database
+        db.init(db_file)
+        create_database()
+
+        if(xbmc):
+            pDialog.update(40,"Initialising Database... Done", "Populating Database...")
+        else:
+            print("")
+            print("Populating Database")
+
+        if(xbmc):
+            populate_database(shows, pDialog)
+        else:
+            populate_database(shows, None)
+
+        if(xbmc):
+            pDialog.update(100,"Populating Database... Done", "", "")
+    else:
+        print("")
+        print("Database already up to date")
 
     if(return_to_interpreter):
         code.interact(local=locals())

@@ -314,7 +314,6 @@ def list_channels():
 
 def list_shows_all():
     # script_dir = os.path.dirname(os.path.realpath(__file__))
-    # shows = load_shows_json()
     pDialog = xbmcgui.DialogProgress()
     pDialog.create('Retrieving Over 10,000 shows. ')
     pDialog.update(0,"Please be patient...")
@@ -449,10 +448,6 @@ def list_shows_by_channel(channel):
         shows_records = Show.select().where(Show.film == True).order_by(Show.title)
 
     shows = convert_shows_to_json(shows_records)
-    # script_dir = os.path.dirname(os.path.realpath(__file__))
-    # all_shows = load_shows_json()
-    # all_channel_shows = sort_shows.sort_shows_by_channel(all_shows)
-    # shows = all_channel_shows[channel]
 
     # Iterate through shows
     for show in shows:
@@ -549,7 +544,8 @@ def play_episode(show, season, episode):
     pDialog = xbmcgui.DialogProgress()
     pDialog.create('Playing Episode', 'Loading Shows...')
 
-    shows = load_shows_json()
+    show_record = Show.select().where(Show.title == show).get()
+    shows = convert_show_to_json(show_record)
 
     pDialog.update(25,"Contacting Redux...")
 
@@ -883,8 +879,6 @@ def search_for_shows_vague():
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
     if search_term == '':
         return
-    # script_dir = os.path.dirname(os.path.realpath(__file__))
-    # shows = load_shows_json()
 
     regex = False
     if(search_term[0:3]=="-r "):
@@ -937,8 +931,6 @@ def search_for_shows():
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
     if search_term == '':
         return
-    # script_dir = os.path.dirname(os.path.realpath(__file__))
-    # shows = load_shows_json()
 
     regex = False
     if(search_term[0:3]=="-r "):
@@ -997,7 +989,7 @@ def router(paramstring):
             elif params['selection'] == "Update Shows Database":
                 dialog = xbmcgui.Dialog()
                 dialog.ok('Update Shows Database', 'This feature has been disabled due to it being broken by shutdown of BBC /programmes schedules API. A workaround is in development.')
-                return 
+                return
                 update_shows()
             elif params['selection'] == "Search":
                 list_search()
@@ -1069,11 +1061,11 @@ def load_shows_json(location = None):
         location = "{0}/shows.pickle".format(script_dir)
     if os.path.isfile(location):
         f = open( location, "rb" )
-        shows = pickle.load( f )
-        shows = shows["shows"]
+        shows_obj = pickle.load( f )
+        # shows = shows_obj["shows"]
         f.close()
         print("Finished Loading Shows (Success)")
-        return shows
+        return shows_obj
     else:
         print("Finished Loading Shows (Fail)")
         return None
@@ -1083,9 +1075,9 @@ def check_for_database(db_path,pickle_path):
         return True
     if(os.path.isfile(pickle_path)):
         pDialog = xbmcgui.DialogProgress()
-        pDialog.create('Creating Databasse', 'Loading Shows...')
-        shows = load_shows_json()
-        if(shows == None):
+        pDialog.create('Creating Database', 'Loading Shows...')
+        shows_obj = load_shows_json()
+        if(shows_obj == None):
             dialog = xbmcgui.Dialog()
             dialog.ok('Loading Data', 'Found pickled data but it is corrupted', "Failed File: {0}".format(pickle_path))
             return False
@@ -1095,7 +1087,7 @@ def check_for_database(db_path,pickle_path):
         db.init(db_path)
         create_database()
         pDialog.update(40,"Initialising Database... Done", "Populating Database...")
-        populate_database(shows, pDialog)
+        populate_database(shows_obj, pDialog)
         pDialog.update(100,"Populating Database... Done", "", "")
         return True
 

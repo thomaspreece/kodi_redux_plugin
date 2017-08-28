@@ -94,3 +94,16 @@ class ShowActor(BaseModel):
     """
     show = peewee.ForeignKeyField(Show)
     actor = peewee.ForeignKeyField(Actor)
+
+class GenreToSubGenre(BaseModel):
+    """
+    ORM model connecting genre to subgenres
+    """
+    genre = peewee.ForeignKeyField(Genre)
+    subgenre = peewee.ForeignKeyField(SubGenre)
+
+class LastUpdate(BaseModel):
+    """
+    ORM model detailing the last update date
+    """
+    date = peewee.CharField(max_length=26)

@@ -1,7 +1,7 @@
 # models.py
 from lib import peewee
 
-from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
 
 try:
     from cStringIO import StringIO
@@ -25,9 +25,11 @@ def create_database():
         [ShowGenre, "ShowGenre"],
         [SubGenre, "SubGenre"],
         [ShowSubGenre, "ShowSubGenre"],
+        [GenreToSubGenre, "GenreToSubGenre"],
         [Actor, "Actor"],
         [ShowActor, "ShowActor"],
-        [Year, "Year"]
+        [Year, "Year"],
+        [LastUpdate, "LastUpdate"]
     ]
     for table in tables:
         try:
@@ -38,15 +40,18 @@ def create_database():
             print("{0} table created".format(table[1]))
     db.close()
 
-def populate_database(shows, pDialog= None):
+def populate_database(shows_obj, pDialog= None):
     db = BaseModel._meta.database
     db.connect()
 
-    if shows == None:
+    if shows_obj == None:
         raise ValueError("No Shows!")
+
+    shows = shows_obj["shows"]
 
     show_db_list = []
     show_link_db_list = []
+    genre_link_db_list = []
 
     genre_db_dict = {}
     sub_genre_db_dict = {}
@@ -160,6 +165,14 @@ def populate_database(shows, pDialog= None):
             )
             show_link_db_list.append(showactor)
 
+    for genre_name in shows_obj["genres"]:
+        for sub_genre_name in shows_obj["genres"][genre_name]:
+            genretosubgenre = GenreToSubGenre(
+                genre = genre_db_dict[genre_name],
+                subgenre = sub_genre_db_dict[sub_genre_name]
+            )
+            genre_link_db_list.append(genretosubgenre)
+
     with db.atomic():
         if pDialog:
             pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Shows...")
@@ -190,6 +203,14 @@ def populate_database(shows, pDialog= None):
             pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Links...")
         for showlink in show_link_db_list:
             showlink.save()
+        if pDialog:
+            pDialog.update(60,"Initialising Database... Done", "Populating Database...", "Populating Genre Links...")
+        for genrelink in genre_link_db_list:
+            genrelink.save()
+
+        LastUpdate(
+            date = shows_obj["parsed"]
+        ).save()
         print("Links Saved")
     db.close()
 

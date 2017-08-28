@@ -269,7 +269,7 @@ def get_shows(shows_obj, script_prefix=""):
     for schedule_folder in sorted(glob.glob("{0}/*".format(SCRAPE_FOLDER))):
         for json_file in sorted(glob.glob(schedule_folder+"/*.json")):
             json_file_date = parser.parse(json_file.rsplit('/')[-1][0:10])
-            if(initial_latest_parse != None and json_file_date > initial_latest_parse):
+            if(initial_latest_parse != None and json_file_date <= initial_latest_parse):
                 continue
             k = k + 1
             if(k > 50):
@@ -398,7 +398,9 @@ def get_shows(shows_obj, script_prefix=""):
                             "moviedb_merged": False,
                             "fanart": [],
                             "poster": [],
-                            "banner": []
+                            "banner": [],
+                            "rating": None,
+                            "rating_count": None
                         }
                         shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_show")
                         show_added_to_recents = True
