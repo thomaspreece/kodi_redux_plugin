@@ -987,9 +987,9 @@ def router(paramstring):
             if params['selection'] == 'View By Category':
                 list_categories()
             elif params['selection'] == "Update Shows Database":
-                dialog = xbmcgui.Dialog()
-                dialog.ok('Update Shows Database', 'This feature has been disabled due to it being broken by shutdown of BBC /programmes schedules API. A workaround is in development.')
-                return
+                # dialog = xbmcgui.Dialog()
+                # dialog.ok('Update Shows Database', 'This feature has been disabled due to it being broken by shutdown of BBC /programmes schedules API. A workaround is in development.')
+                # return
                 update_shows()
             elif params['selection'] == "Search":
                 list_search()
