@@ -10,7 +10,7 @@ from urlparse import parse_qsl
 import xbmcgui
 import xbmcplugin
 
-from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import Show, Genre, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
 from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, create_database
 
 import os
@@ -269,7 +269,43 @@ def list_genres():
         list_item.setArt({'thumb': DEFAULT_ICON,
                           'icon': DEFAULT_ICON,
                           'fanart': DEFAULT_FANART})
-        url = get_url(action='show_listing', genre=genre)
+        url = get_url(action='show_subgenre_of_genre_listing', genre=genre)
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+    xbmcplugin.endOfDirectory(_handle)
+
+def list_subgenres_of_genre(genre):
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    #subgenres = Genre.select(SubGenre).where(Genre.name == genre).join(GenreToSubGenre).join(SubGenre).order_by(SubGenre.name)
+    subgenres = SubGenre.select().join(GenreToSubGenre).join(Genre).where(Genre.name == genre).order_by(SubGenre.name)
+
+    """
+    Create the list of video categories in the Kodi interface.
+    """
+    list_item = xbmcgui.ListItem(label="Show all from: {0}".format(genre))
+    list_item.setInfo('video', {'title': genre})
+    list_item.setInfo('video', {'genre': genre})
+    list_item.setArt({'thumb': DEFAULT_ICON,
+                      'icon': DEFAULT_ICON,
+                      'fanart': DEFAULT_FANART})
+    url = get_url(action='show_listing', genre=genre)
+    xbmcplugin.addDirectoryItem(_handle, url, list_item, True)
+
+    i = 0
+    # Iterate through categories
+    for subgenre_record in subgenres:
+        subgenre = subgenre_record.name
+        i += 1
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label="{0} ({1})".format(subgenre,genre))
+        list_item.setInfo('video', {'title': subgenre})
+        list_item.setInfo('video', {'genre': subgenre})
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        url = get_url(action='show_listing', genre=genre, subgenre=subgenre)
         is_folder = True
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
 
@@ -434,6 +470,34 @@ def list_shows_by_subgenre(genre):
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+def list_shows_by_genre_with_subgenre(genre, subgenre):
+    shows_records = Show.select().join(ShowGenre).join(Genre).where(Genre.name == genre)
+    shows_records = shows_records.switch(Show).join(ShowSubGenre).join(SubGenre).where(SubGenre.name == subgenre).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        list_item = set_show_metadata(shows[show], list_item)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
 
 def list_shows_by_channel(channel):
     if channel == "BBC One":
@@ -545,7 +609,7 @@ def play_episode(show, season, episode):
     pDialog.create('Playing Episode', 'Loading Shows...')
 
     show_record = Show.select().where(Show.title == show).get()
-    shows = convert_show_to_json(show_record)
+    show = convert_show_to_json(show_record)
 
     pDialog.update(25,"Contacting Redux...")
 
@@ -559,7 +623,7 @@ def play_episode(show, season, episode):
 
     # Needs to Check that a h264 version is available and also check that a non regions version is available
 
-    [error,ref] = resolve_redux.resolve_episode_ref(redux_token, shows[show], season, episode)
+    [error,ref] = resolve_redux.resolve_episode_ref(redux_token, show, season, episode)
     print([error,ref])
     pDialog.update(75,"Contacting Redux... Done","Getting Disc Ref... Done","Resolving to URL...")
     if (error > -1):
@@ -1019,9 +1083,13 @@ def router(paramstring):
                 list_years()
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+        elif params['action'] == "show_subgenre_of_genre_listing":
+            list_subgenres_of_genre(params['genre'])
         elif params['action'] == 'show_listing':
             if 'channel' in params:
                 list_shows_by_channel(params['channel'])
+            elif 'genre' in params and 'subgenre' in params:
+                list_shows_by_genre_with_subgenre(params['genre'], params['subgenre'])
             elif 'genre' in params:
                 list_shows_by_genre(params['genre'])
             elif 'subgenre' in params:
