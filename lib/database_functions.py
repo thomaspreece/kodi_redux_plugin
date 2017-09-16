@@ -1,7 +1,7 @@
 # models.py
 from lib import peewee
 
-from lib.database_schema import Show, Genre, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
 
 try:
     from cStringIO import StringIO
@@ -22,6 +22,7 @@ def create_database():
     tables = [
         [Show,"Show"],
         [Genre, "Genre"],
+        [RecentShows, "RecentShows"],
         [ShowGenre, "ShowGenre"],
         [SubGenre, "SubGenre"],
         [ShowSubGenre, "ShowSubGenre"],
@@ -34,7 +35,8 @@ def create_database():
     for table in tables:
         try:
             table[0].create_table()
-        except peewee.OperationalError:
+        except peewee.OperationalError, e:
+            print(str(e))
             print("{0} table already exists!".format(table[1]))
         else:
             print("{0} table created".format(table[1]))
@@ -50,6 +52,8 @@ def populate_database(shows_obj, pDialog= None):
     shows = shows_obj["shows"]
 
     show_db_list = []
+    recent_show_db_list = []
+
     show_link_db_list = []
     genre_link_db_list = []
 
@@ -57,6 +61,10 @@ def populate_database(shows_obj, pDialog= None):
     sub_genre_db_dict = {}
     actor_db_dict = {}
     year_db_dict = {}
+
+    name_to_recent_index = {}
+    for recent_ind in range(len(shows_obj["recent"])):
+        name_to_recent_index[shows_obj["recent"][recent_ind]["name"]] = recent_ind
 
     for show_key in shows:
         show_json = shows[show_key]
@@ -144,6 +152,21 @@ def populate_database(shows_obj, pDialog= None):
         )
         show_db_list.append(show)
 
+        if show_json["title"] in name_to_recent_index:
+            recent_ind = name_to_recent_index[show_json["title"]]
+            recent_type_string = shows_obj["recent"][recent_ind]["type"]
+            if(recent_type_string == "new_show"):
+                recent_type = 1
+            elif(recent_type_string == "new_season"):
+                recent_type = 2
+            else:
+                raise ValueError(recent_type_string)
+            recentshow = RecentShows(
+                show = show,
+                recenttype = recent_type
+            )
+            recent_show_db_list.append(recentshow)
+
         for genre_name in show_json["genres"]:
             showgenre = ShowGenre(
                 show = show,
@@ -180,33 +203,37 @@ def populate_database(shows_obj, pDialog= None):
             show.save()
         print("Shows Saved")
         if pDialog:
-            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Genres...")
+            pDialog.update(52,"Initialising Database... Done", "Populating Database...", "Populating Genres...")
         for genre_key in genre_db_dict:
             genre_db_dict[genre_key].save()
         print("Genres Saved")
         if pDialog:
-            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Actors...")
+            pDialog.update(54,"Initialising Database... Done", "Populating Database...", "Populating Actors...")
         for actor_key in actor_db_dict:
             actor_db_dict[actor_key].save()
         print("Actors Saved")
         if pDialog:
-            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Sub-Genres...")
+            pDialog.update(56,"Initialising Database... Done", "Populating Database...", "Populating Sub-Genres...")
         for sub_genre_key in sub_genre_db_dict:
             sub_genre_db_dict[sub_genre_key].save()
         print("Sub Genres Saved")
         if pDialog:
-            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Years...")
+            pDialog.update(58,"Initialising Database... Done", "Populating Database...", "Populating Years...")
         for year_key in year_db_dict:
             year_db_dict[year_key].save()
         print("Years Saved")
         if pDialog:
-            pDialog.update(50,"Initialising Database... Done", "Populating Database...", "Populating Links...")
+            pDialog.update(60,"Initialising Database... Done", "Populating Database...", "Populating Links...")
         for showlink in show_link_db_list:
             showlink.save()
         if pDialog:
-            pDialog.update(60,"Initialising Database... Done", "Populating Database...", "Populating Genre Links...")
+            pDialog.update(70,"Initialising Database... Done", "Populating Database...", "Populating Genre Links...")
         for genrelink in genre_link_db_list:
             genrelink.save()
+        if pDialog:
+            pDialog.update(80,"Initialising Database... Done", "Populating Database...", "Populating Recent Shows...")
+        for recentshow in recent_show_db_list:
+            recentshow.save()
 
         LastUpdate(
             date = shows_obj["parsed"]
@@ -262,6 +289,7 @@ def convert_shows_to_json(show_records):
     return shows
 
 if __name__ == "__main__":
+    set_db_type("sqlite")
     db = BaseModel._meta.database
     db.init("Testing.db")
     create_database()

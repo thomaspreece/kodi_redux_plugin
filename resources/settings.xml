@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-<category label="General">
+<category label="Redux">
 <setting id="username" type="text" label="Username" default="" />
 <setting id="password" type="text" option="hidden" label="Password" enable="!eq(-1,)" default="" />
 <setting id="format" type="labelenum" label="Format" values="Original stream|H264 large|H264 small" default="H264 small" />
@@ -9,5 +9,17 @@
 <category label="API Keys">
   <setting id="tvdb_api_key" type="text" label="TheTVDB.com API Key" default="" />
   <setting id="moviedb_api_key" type="text" label="theMovieDB.org API Key" default="" />
+</category>
+
+<category label="Advanced">
+  <setting id="db_format" type="labelenum" label="DB Provider" values="sqlite|mysql" default="sqlite" />
+  <setting id="sqlite_use_db_folder" type="bool" label="Use custom database location" default="false" visible="eq(-1,0)"/>
+  <setting id="sqlite_db_folder" type="folder" label="Database location (NTF and SMB shares are not valid locations)" source="auto" option="writeable" value="" visible="eq(-1,true)+eq(-2,0)"/>
+
+  <setting id="mysql_hostname" type="text" label="Hostname" default="127.0.0.1" visible="eq(-3,1)"/>
+  <setting id="mysql_port" type="number" label="Port" default=3306 visible="eq(-4,1)"/>
+  <setting id="mysql_username" type="text" label="Username" default="root" visible="eq(-5,1)"/>
+  <setting id="mysql_password" type="text" option="hidden" label="Password" default="" visible="eq(-6,1)"/>
+  <setting id="mysql_db" type="text" label="Database Name (Note: DB should be set to UTF-8)" default="mydatabase" visible="eq(-7,1)"/>
 </category>
 </settings>

@@ -7,10 +7,11 @@
 import sys
 from urllib import urlencode
 from urlparse import parse_qsl
+import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from lib.database_schema import Show, Genre, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel, init_database
 from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, create_database
 
 import os
@@ -23,10 +24,15 @@ from lib import sort_shows
 from lib import resolve_redux
 from lib import util
 
+import traceback
+
 # Get the plugin url in plugin:// notation.
 _url = sys.argv[0]
 # Get the plugin handle as an integer number.
 _handle = int(sys.argv[1])
+
+__addon__ = xbmcaddon.Addon()
+__profile__ = xbmc.translatePath( __addon__.getAddonInfo('profile') ).decode("utf-8")
 
 DEFAULT_FANART = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/fanart.jpg')
 DEFAULT_ICON = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/lists.png')
@@ -37,12 +43,19 @@ DOWNLOAD_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/
 UPDATE_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/scrape-update.py')
 
 MAINMENU = [
+    {'name':'Recently Added' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'View By Category' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Search', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Update Shows Database',
         'thumb': xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/update.png'),
         'fanart': DEFAULT_FANART}
     ]
+
+RECENTMENU = [
+    {'name':'Show All' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Show New Shows Only' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
+    {'name':'Show New Seasons Only' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+]
 
 SEARCHMENU = [
     {'name':'Search (By Name)', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
@@ -148,6 +161,21 @@ def list_menu():
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+
+def list_recently_added_shows_categories():
+    for category in range(len(RECENTMENU)):
+        list_item = xbmcgui.ListItem(label=RECENTMENU[category]['name'])
+
+        list_item.setArt({'thumb': RECENTMENU[category]['thumb'],
+                          'icon': RECENTMENU[category]['thumb'],
+                          'fanart': RECENTMENU[category]['fanart']})
+
+        list_item.setInfo('video', {'title': RECENTMENU[category]['name'], 'genre': RECENTMENU[category]['name']})
+
+        url = get_url(action='show_listing', recent=RECENTMENU[category]['name'])
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    xbmcplugin.endOfDirectory(_handle)
 
 def list_categories():
     """
@@ -491,6 +519,36 @@ def list_shows_by_genre_with_subgenre(genre, subgenre):
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def list_recently_added_shows(recenttype):
+    if (recenttype == 'Show All'):
+        shows_records = Show.select().join(RecentShows).order_by(Show.title)
+    elif (recenttype == 'Show New Shows Only'):
+        shows_records = Show.select().join(RecentShows).where(RecentShows.recenttype == 1).order_by(Show.title)
+    elif (recenttype == 'Show New Seasons Only'):
+        shows_records = Show.select().join(RecentShows).where(RecentShows.recenttype == 2).order_by(Show.title)
+    else:
+        raise ValueError("Invalid Recent Type")
+
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        list_item = xbmcgui.ListItem(label=show)
+        list_item = set_show_metadata(shows[show], list_item)
+        #list_item.setInfo('video', {'title': '(New Season) {0}'.format(shows[show]["title"].encode("utf-8"))})
+
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
@@ -1046,9 +1104,12 @@ def router(paramstring):
     # {<parameter>: <value>} elements
     params = dict(parse_qsl(paramstring))
     # Check the parameters passed to the plugin
+
     if params:
         if params['action'] == 'menu':
-            if params['selection'] == 'View By Category':
+            if params['selection'] == 'Recently Added':
+                list_recently_added_shows_categories()
+            elif params['selection'] == 'View By Category':
                 list_categories()
             elif params['selection'] == "Update Shows Database":
                 # dialog = xbmcgui.Dialog()
@@ -1086,7 +1147,9 @@ def router(paramstring):
         elif params['action'] == "show_subgenre_of_genre_listing":
             list_subgenres_of_genre(params['genre'])
         elif params['action'] == 'show_listing':
-            if 'channel' in params:
+            if 'recent' in params:
+                list_recently_added_shows(params['recent'])
+            elif 'channel' in params:
                 list_shows_by_channel(params['channel'])
             elif 'genre' in params and 'subgenre' in params:
                 list_shows_by_genre_with_subgenre(params['genre'], params['subgenre'])
@@ -1138,9 +1201,32 @@ def load_shows_json(location = None):
         print("Finished Loading Shows (Fail)")
         return None
 
-def check_for_database(db_path,pickle_path):
-    if( os.path.isfile(db_path)):
-        return True
+def check_for_database(db_data, pickle_path):
+    if(db_data["db_format"] == "sqlite"):
+        if(os.path.isfile(db_data["data"]["path"])):
+            return True
+    elif(db_data["db_format"] == "mysql"):
+        try:
+            db = BaseModel._meta.database
+            init_database(db, db_data)
+            db.connect()
+        except Exception,e:
+            print(str(e))
+            traceback.print_exc()
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Loading Data', 'Could not connect to mysql database:', str(e))
+            return False
+
+        try:
+            lastupdaterows = LastUpdate.select()
+            if(len(lastupdaterows) > 0):
+                return True
+        except Exception,e:
+            print(str(e))
+            traceback.print_exc()
+            pass
+
+
     if(os.path.isfile(pickle_path)):
         pDialog = xbmcgui.DialogProgress()
         pDialog.create('Creating Database', 'Loading Shows...')
@@ -1152,26 +1238,55 @@ def check_for_database(db_path,pickle_path):
 
         pDialog.update(20,"Loading Shows... Done","Initialising Database...")
         db = BaseModel._meta.database
-        db.init(db_path)
+        init_database(db, db_data)
         create_database()
         pDialog.update(40,"Initialising Database... Done", "Populating Database...")
         populate_database(shows_obj, pDialog)
         pDialog.update(100,"Populating Database... Done", "", "")
         return True
+    else:
+        dialog = xbmcgui.Dialog()
+        dialog.ok('Loading Data', 'Could not find a database of shows', "Expected: {0} to exist".format(pickle_path))
+        return False
 
-    dialog = xbmcgui.Dialog()
-    dialog.ok('Loading Data', 'Could not find a database of shows', "Expected: {0} to exist".format(pickle_path))
-    return False
 
 if __name__ == '__main__':
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    database_path = "{0}/shows.db".format(script_dir)
     pickle_path = "{0}/shows.pickle".format(script_dir)
 
-    if(check_for_database(database_path,pickle_path)):
+    db_format = xbmcaddon.Addon('plugin.video.redux').getSetting("db_format")
+    db_data = {
+        "db_format": db_format,
+        "data": {}
+    }
+    if(db_format == "mysql"):
+        db_data["data"]["host"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_hostname")
+        db_data["data"]["port"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_port")
+        db_data["data"]["username"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_username")
+        db_data["data"]["password"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_password")
+        db_data["data"]["db"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_db")
+    elif(db_format == "sqlite"):
+        use_custom_db_path = xbmcaddon.Addon('plugin.video.redux').getSetting("sqlite_use_db_folder")
+        if(use_custom_db_path == "true"):
+            database_folder = xbmcaddon.Addon('plugin.video.redux').getSetting("sqlite_db_folder")
+            if(database_folder.endswith("\\") or database_folder.endswith("/")):
+                pass
+            else:
+                database_folder = database_folder+"/"
+            database_folder = xbmc.translatePath(database_folder)
+            print(database_folder)
+            database_path = "{0}shows.db".format(database_folder)
+        else:
+            database_path = "{0}shows.db".format(__profile__)
+
+        db_data["data"]["path"] = database_path
+    else:
+        raise ValueError("Invalid database provider")
+
+    if(check_for_database(db_data, pickle_path)):
         # Connect to Database
         db = BaseModel._meta.database
-        db.init(database_path)
+        init_database(db, db_data)
         db.connect()
         # Call the router function and pass the plugin call parameters to it.
         # We use string slicing to trim the leading '?' from the plugin call paramstring
