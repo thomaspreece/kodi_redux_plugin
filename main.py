@@ -11,7 +11,7 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel, init_database
+from lib.database_schema import Show, FavouriteShow, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel, init_database
 from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, create_database
 
 import os
@@ -43,6 +43,7 @@ DOWNLOAD_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/
 UPDATE_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/scrape-update.py')
 
 MAINMENU = [
+    {'name':'Favourites' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Recently Added' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'View By Category' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Search', 'thumb': SEARCH_ICON, 'fanart': DEFAULT_FANART},
@@ -384,6 +385,8 @@ def list_shows_all():
     shows_records = Show.select().order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
+    favourite_shows_list = get_favourite_shows_list()
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -394,7 +397,11 @@ def list_shows_all():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -412,9 +419,8 @@ def list_shows_all():
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-
-def list_shows_by_year(year):
-    shows_records = Show.select().where(Show.year == year).order_by(Show.title)
+def list_favourite_shows():
+    shows_records = Show.select().join(FavouriteShow, on=(Show.title == FavouriteShow.show)).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
     # Iterate through shows
@@ -424,7 +430,41 @@ def list_shows_by_year(year):
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        favourite = True
+        list_item = set_show_metadata(shows[show], list_item, favourite)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def list_shows_by_year(year):
+    shows_records = Show.select().where(Show.year == year).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
+    favourite_shows_list = get_favourite_shows_list()
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -446,6 +486,7 @@ def list_shows_by_genre(genre):
     shows_records = Show.select().join(ShowGenre).join(Genre).where(Genre.name == genre).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
+    favourite_shows_list = get_favourite_shows_list()
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -453,7 +494,11 @@ def list_shows_by_genre(genre):
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -473,6 +518,7 @@ def list_shows_by_genre(genre):
 def list_shows_by_subgenre(genre):
     shows_records = Show.select().join(ShowSubGenre).join(SubGenre).where(SubGenre.name == genre).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
+    favourite_shows_list = get_favourite_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -481,7 +527,11 @@ def list_shows_by_subgenre(genre):
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -503,6 +553,8 @@ def list_shows_by_genre_with_subgenre(genre, subgenre):
     shows_records = shows_records.switch(Show).join(ShowSubGenre).join(SubGenre).where(SubGenre.name == subgenre).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
+    favourite_shows_list = get_favourite_shows_list()
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -510,7 +562,11 @@ def list_shows_by_genre_with_subgenre(genre, subgenre):
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -539,10 +595,16 @@ def list_recently_added_shows(recenttype):
 
     shows = convert_shows_to_json(shows_records)
 
+    favourite_shows_list = get_favourite_shows_list()
+
     # Iterate through shows
     for show in shows:
         list_item = xbmcgui.ListItem(label=show)
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
         #list_item.setInfo('video', {'title': '(New Season) {0}'.format(shows[show]["title"].encode("utf-8"))})
 
         url = get_url(action='season_listing', show=show.encode("utf-8"))
@@ -570,6 +632,7 @@ def list_shows_by_channel(channel):
         shows_records = Show.select().where(Show.film == True).order_by(Show.title)
 
     shows = convert_shows_to_json(shows_records)
+    favourite_shows_list = get_favourite_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -582,7 +645,11 @@ def list_shows_by_channel(channel):
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
 
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -830,7 +897,7 @@ def set_episode_metadata(show,season,episode,list_item):
     return list_item
 
 
-def set_show_metadata(show, list_item):
+def set_show_metadata(show, list_item, favourite = False):
     if len(show["poster"]) > 0:
         list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
         list_item.setArt({'poster': show["poster"][0]})
@@ -845,7 +912,15 @@ def set_show_metadata(show, list_item):
     if len(show["banner"]) > 0:
         list_item.setArt({'banner': show["banner"][0]})
 
-    list_item.addContextMenuItems([("Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')')])
+    contextMenuItems = []
+    contextMenuItems.append(("Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')'))
+    if(favourite):
+        contextMenuItems.append(("Remove From Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
+    else:
+        contextMenuItems.append(("Add To Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
+
+    list_item.addContextMenuItems(contextMenuItems)
+
 
     list_item.setInfo('video', {'title': show["title"].encode("utf-8")})
     if(len(show["genres"]) > 0):
@@ -897,6 +972,50 @@ def advanced_search_for_shows():
     dialog = xbmcgui.Dialog()
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
 
+    channel_list = ["All"]
+    for channel in CHANNELS:
+        channel_list.append(channel["name"])
+
+    dialog = xbmcgui.Dialog()
+    channel_selections = dialog.select("Choose Channel", channel_list)
+
+    if(channel_selections == -1):
+        return
+
+    genre_record_list = Genre.select()
+    sub_genre_record_list = SubGenre.select()
+    genre_list = []
+    for genre_record in genre_record_list:
+        genre_list.append(genre_record.name)
+    for genre_record in sub_genre_record_list:
+        genre_list.append(genre_record.name)
+    genre_list.sort()
+    genre_list = ["All"] + genre_list
+
+    dialog = xbmcgui.Dialog()
+    genre_selections = dialog.select("Choose Genre", genre_list)
+
+    if(genre_selections == -1):
+        return
+
+    year_record_list = Year.select().order_by(Year.name)
+    year_list = ["All"]
+    for year_record in year_record_list:
+        year_list.append(year_record.name)
+
+    dialog = xbmcgui.Dialog()
+    year_selections = dialog.select("Choose Year", year_list)
+
+    if(year_selections == -1):
+        return
+
+    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Advanced Search&search_term=%s&channel_selections=%s&genre_selections=%s&year_selections=%s)' % (sys.argv[0], search_term, channel_selections, genre_selections, year_selections))
+
+def advanced_search_for_shows_list(search_term, channel_selections, genre_selections, year_selections):
+    channel_selections = int(channel_selections)
+    genre_selections = int(genre_selections)
+    year_selections = int(year_selections)
+
     query = True
     query_set = False
 
@@ -910,13 +1029,6 @@ def advanced_search_for_shows():
             query = query & (Show.title.regexp(search_term[3:len(search_term)]))
         else:
             query = query & (Show.title.contains(search_term))
-
-    channel_list = ["All"]
-    for channel in CHANNELS:
-        channel_list.append(channel["name"])
-
-    dialog = xbmcgui.Dialog()
-    channel_selections = dialog.select("Choose Channel", channel_list)
 
     if channel_selections > 0:
         query_set = True
@@ -941,9 +1053,6 @@ def advanced_search_for_shows():
     genre_list.sort()
     genre_list = ["All"] + genre_list
 
-    dialog = xbmcgui.Dialog()
-    genre_selections = dialog.select("Choose Genre", genre_list)
-
     if genre_selections > 0:
         query_set = True
         query = query & (
@@ -951,13 +1060,10 @@ def advanced_search_for_shows():
             SubGenre.name==genre_list[genre_selections]
          )
 
-    year_record_list = Year.select()
+    year_record_list = Year.select().order_by(Year.name)
     year_list = ["All"]
     for year_record in year_record_list:
         year_list.append(year_record.name)
-
-    dialog = xbmcgui.Dialog()
-    year_selections = dialog.select("Choose Year", year_list)
 
     if year_selections > 0:
         query_set = True
@@ -967,6 +1073,8 @@ def advanced_search_for_shows():
 
     shows_records = Show.select().join(ShowGenre).join(Genre).switch(Show).join(ShowSubGenre).join(SubGenre).where(query)
     shows = convert_shows_to_json(shows_records)
+
+    favourite_shows_list = get_favourite_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -978,7 +1086,11 @@ def advanced_search_for_shows():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1001,7 +1113,9 @@ def search_for_shows_vague():
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
     if search_term == '':
         return
+    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Search (By Name, Desc, Actors)&search_term=%s)' % (sys.argv[0], search_term))
 
+def search_for_shows_vague_list(search_term):
     regex = False
     if(search_term[0:3]=="-r "):
         regex = True
@@ -1019,6 +1133,7 @@ def search_for_shows_vague():
             (Actor.name.contains(search_term))
         )
     shows = convert_shows_to_json(shows_records)
+    favourite_shows_list = get_favourite_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -1030,7 +1145,11 @@ def search_for_shows_vague():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1054,6 +1173,9 @@ def search_for_shows():
     if search_term == '':
         return
 
+    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Search (By Name)&search_term=%s)' % (sys.argv[0], search_term))
+
+def search_for_shows_list(search_term):
     regex = False
     if(search_term[0:3]=="-r "):
         regex = True
@@ -1063,6 +1185,7 @@ def search_for_shows():
     else:
         shows_records = Show.select().where(Show.title.contains(search_term))
     shows = convert_shows_to_json(shows_records)
+    favourite_shows_list = get_favourite_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -1074,7 +1197,11 @@ def search_for_shows():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        list_item = set_show_metadata(shows[show], list_item)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        list_item = set_show_metadata(shows[show], list_item, favourite)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1092,6 +1219,37 @@ def search_for_shows():
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+def get_favourite_shows_list():
+    favourite_show_list = []
+    favourite_show_results = FavouriteShow.select()
+    for favourite_show_result in favourite_show_results:
+        favourite_show_list.append(favourite_show_result.show)
+    return favourite_show_list
+
+def mark_favourite(show_name, unfavourite = False):
+    favourite_show_results = FavouriteShow.select().where(FavouriteShow.show == show_name)
+    if(unfavourite == False):
+        if(len(favourite_show_results) == 0):
+            favourite_show = FavouriteShow(
+                show = show_name
+            ).save()
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Added Favourite', '{0} successfully added to favourites'.format(show_name))
+        else:
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Adding Favourite', '{0} already in favourites'.format(show_name))
+    else:
+        if(len(favourite_show_results) > 0):
+            favourite_show = FavouriteShow.delete().where(
+                FavouriteShow.show == show_name
+            ).execute()
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Removed Favourite', '{0} successfully removed from favourites'.format(show_name))
+        else:
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Removing Favourite', '{0} is not in favourites'.format(show_name))
+    xbmc.executebuiltin("Container.Refresh")
+
 def router(paramstring):
     """
     Router function that calls other functions
@@ -1106,8 +1264,15 @@ def router(paramstring):
     # Check the parameters passed to the plugin
 
     if params:
-        if params['action'] == 'menu':
-            if params['selection'] == 'Recently Added':
+        if params['action'] == 'favourite_mark':
+            if(params['unfavourite'] == "True"):
+                mark_favourite(params['show'], True)
+            else:
+                mark_favourite(params['show'], False)
+        elif params['action'] == 'menu':
+            if params['selection'] == 'Favourites':
+                list_favourite_shows()
+            elif params['selection'] == 'Recently Added':
                 list_recently_added_shows_categories()
             elif params['selection'] == 'View By Category':
                 list_categories()
@@ -1128,6 +1293,17 @@ def router(paramstring):
                 search_for_shows_vague()
             elif params['selection'] == 'Advanced Search':
                 advanced_search_for_shows()
+            else:
+                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+        elif params['action'] == 'search_list':
+            if params['search_type'] == 'Search (By Name)':
+                search_for_shows_list(params['search_term'])
+            elif params['search_type'] == 'Search (By Name, Desc, Actors)':
+                search_for_shows_vague_list(params['search_term'])
+            elif params['search_type'] == 'Advanced Search':
+                if('search_term' not in params):
+                    params['search_term'] = ""
+                advanced_search_for_shows_list(params['search_term'], params['channel_selections'], params['genre_selections'], params['year_selections'])
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
         elif params['action'] == 'listing':
@@ -1212,7 +1388,6 @@ def check_for_database(db_data, pickle_path):
             db.connect()
         except Exception,e:
             print(str(e))
-            traceback.print_exc()
             dialog = xbmcgui.Dialog()
             dialog.ok('Loading Data', 'Could not connect to mysql database:', str(e))
             return False
@@ -1223,7 +1398,6 @@ def check_for_database(db_data, pickle_path):
                 return True
         except Exception,e:
             print(str(e))
-            traceback.print_exc()
             pass
 
 

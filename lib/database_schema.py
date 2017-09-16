@@ -4,7 +4,8 @@ database_proxy = peewee.Proxy()
 
 def init_database(db_proxy, db_data):
     if(db_data["db_format"] == "mysql"):
-        database = peewee.MySQLDatabase(db_data["data"]["db"], host=db_data["data"]["host"], port=int(db_data["data"]["port"]), user=db_data["data"]["username"], password=db_data["data"]["password"])
+        # Remap blob to mediumblob as season can get larger then blob will allow in mySQL.
+        database = peewee.MySQLDatabase(db_data["data"]["db"], host=db_data["data"]["host"], port=int(db_data["data"]["port"]), user=db_data["data"]["username"], password=db_data["data"]["password"], fields={'blob': 'mediumblob' })
         db_proxy.initialize(database)
     elif(db_data["db_format"] == "sqlite"):
         database = peewee.SqliteDatabase(db_data["data"]["path"])
@@ -14,6 +15,9 @@ def init_database(db_proxy, db_data):
 class BaseModel(peewee.Model):
     class Meta:
         database = database_proxy
+
+class FavouriteShow(BaseModel):
+    show = peewee.TextField()
 
 class Show(BaseModel):
     """

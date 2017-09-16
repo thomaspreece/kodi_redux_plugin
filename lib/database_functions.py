@@ -1,7 +1,7 @@
 # models.py
 from lib import peewee
 
-from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import FavouriteShow, Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
 
 try:
     from cStringIO import StringIO
@@ -16,10 +16,30 @@ try:
 except:
    import pickle
 
+def clear_database(clear_user_tables = False):
+    db = BaseModel._meta.database
+    db.connect()
+    if(clear_user_tables):
+        User.delete_instance()
+
+    Show.delete_instance()
+    Genre.delete_instance()
+    RecentShows.delete_instance()
+    ShowGenre.delete_instance()
+    ShowGenre.delete_instance()
+    ShowSubGenre.delete_instance()
+    GenreToSubGenre.delete_instance()
+    Actor.delete_instance()
+    ShowActor.delete_instance()
+    Year.delete_instance()
+    LastUpdate.delete_instance()
+    db.close()
+
 def create_database():
     db = BaseModel._meta.database
     db.connect()
     tables = [
+        [FavouriteShow,"FavouriteShow"],
         [Show,"Show"],
         [Genre, "Genre"],
         [RecentShows, "RecentShows"],
