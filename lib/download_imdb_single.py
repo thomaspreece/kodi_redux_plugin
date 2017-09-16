@@ -3,7 +3,7 @@ import requests
 import math
 from time import sleep
 
-import imdbpie
+from imdbpie import Imdb
 import json
 
 import datetime
@@ -13,7 +13,7 @@ CALLTIME = 30
 # Change number of threads to match number of requests per second
 
 def download_files(download_list):
-    imdb = imdbpie.Imdb()
+    imdb = Imdb()
     start_time = util.get_millisecs()
     CallsMade=0
     for item in download_list:

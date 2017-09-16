@@ -53,3 +53,12 @@ def convert_format(vidformat):
         print("Invalid Format!")
         xbmcgui.Dialog().ok('Converting Format Setting', "The Setting {0} is invalid".format(vidformat))
         return ""
+
+def getManualSetting(settingName):
+    filename = 'Setting-NonKodi.json'
+    try:
+        with open(filename) as data_file:
+            data = json.load(data_file)
+            return data[settingName]
+    except:
+        raise ValueError("Could not open or find {0} or {1} key within it".format(filename,settingName))

@@ -6,6 +6,12 @@ from time import sleep
 from pytvdbapi import api
 import json
 
+try:
+    xbmc_libraries_loaded = True
+    import xbmcaddon
+except:
+    xbmc_libraries_loaded = False
+
 import datetime
 
 CALLS = 60
@@ -13,7 +19,12 @@ CALLTIME = 30
 # Change number of threads to match number of requests per second
 
 def download_files(download_list):
-    db = api.TVDB("D7924BA9B9E92F65")
+    if(xbmc_libraries_loaded):
+        api_key = xbmcaddon.Addon('plugin.video.redux').getSetting("tvdb_api_key")
+    else:
+        api_key = util.getManualSetting("tvdb_api_key")
+
+    db = api.TVDB(api_key)
     start_time = util.get_millisecs()
     CallsMade=0
     for item in download_list:

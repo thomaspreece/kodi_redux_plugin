@@ -3,7 +3,7 @@ import requests
 import math
 from time import sleep
 
-import tmdb3
+from tmdb3 import set_key, set_locale, searchMovie
 import json
 
 import datetime
@@ -13,8 +13,13 @@ CALLTIME = 30
 # Change number of threads to match number of requests per second
 
 def download_files(download_list):
-    tmdb3.set_key('3c88496a0e0ff4b624792d9de3689697')
-    tmdb3.set_locale('en', 'gb')
+    if(xbmc_libraries_loaded):
+        api_key = xbmcaddon.Addon('plugin.video.redux').getSetting("moviedb_api_key")
+    else:
+        api_key = util.getManualSetting("moviedb_api_key")
+
+    set_key(api_key)
+    set_locale('en', 'gb')
     start_time = util.get_millisecs()
     CallsMade=0
     for item in download_list:
@@ -30,7 +35,7 @@ def download_files(download_list):
                 start_time -= (CALLTIME*1000)
 
             try:
-                search_result = tmdb3.searchMovie(search, adult=True)
+                search_result = searchMovie(search, adult=True)
 
                 show = None
                 if(len(search_result) > 0):

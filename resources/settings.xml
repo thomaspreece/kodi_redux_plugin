@@ -4,5 +4,10 @@
 <setting id="username" type="text" label="Username" default="" />
 <setting id="password" type="text" option="hidden" label="Password" enable="!eq(-1,)" default="" />
 <setting id="format" type="labelenum" label="Format" values="Original stream|H264 large|H264 small" default="H264 small" />
+
+</category>
+<category label="API Keys">
+  <setting id="tvdb_api_key" type="text" label="TheTVDB.com API Key" default="" />
+  <setting id="moviedb_api_key" type="text" label="theMovieDB.org API Key" default="" />
 </category>
 </settings>
