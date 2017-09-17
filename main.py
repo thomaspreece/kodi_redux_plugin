@@ -11,8 +11,11 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 
-from lib.database_schema import Show, FavouriteShow, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel, init_database
-from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, create_database
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel
+from lib.user_database_schema import UserFavouriteShow, UserLastUpdate, UserBaseModel
+from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database
+
+
 
 import os
 try:
@@ -420,7 +423,9 @@ def list_shows_all():
     xbmcplugin.endOfDirectory(_handle)
 
 def list_favourite_shows():
-    shows_records = Show.select().join(FavouriteShow, on=(Show.title == FavouriteShow.show)).order_by(Show.title)
+    favourite_shows_list = get_favourite_shows_list()
+
+    shows_records = Show.select().where(Show.title << favourite_shows_list).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
     # Iterate through shows
@@ -1221,16 +1226,16 @@ def search_for_shows_list(search_term):
 
 def get_favourite_shows_list():
     favourite_show_list = []
-    favourite_show_results = FavouriteShow.select()
+    favourite_show_results = UserFavouriteShow.select()
     for favourite_show_result in favourite_show_results:
         favourite_show_list.append(favourite_show_result.show)
     return favourite_show_list
 
 def mark_favourite(show_name, unfavourite = False):
-    favourite_show_results = FavouriteShow.select().where(FavouriteShow.show == show_name)
+    favourite_show_results = UserFavouriteShow.select().where(UserFavouriteShow.show == show_name)
     if(unfavourite == False):
         if(len(favourite_show_results) == 0):
-            favourite_show = FavouriteShow(
+            favourite_show = UserFavouriteShow(
                 show = show_name
             ).save()
             dialog = xbmcgui.Dialog()
@@ -1240,8 +1245,8 @@ def mark_favourite(show_name, unfavourite = False):
             dialog.ok('Adding Favourite', '{0} already in favourites'.format(show_name))
     else:
         if(len(favourite_show_results) > 0):
-            favourite_show = FavouriteShow.delete().where(
-                FavouriteShow.show == show_name
+            favourite_show = UserFavouriteShow.delete().where(
+                UserFavouriteShow.show == show_name
             ).execute()
             dialog = xbmcgui.Dialog()
             dialog.ok('Removed Favourite', '{0} successfully removed from favourites'.format(show_name))
@@ -1250,7 +1255,7 @@ def mark_favourite(show_name, unfavourite = False):
             dialog.ok('Removing Favourite', '{0} is not in favourites'.format(show_name))
     xbmc.executebuiltin("Container.Refresh")
 
-def router(paramstring):
+def router(params):
     """
     Router function that calls other functions
     depending on the provided paramstring
@@ -1260,7 +1265,6 @@ def router(paramstring):
     """
     # Parse a URL-encoded paramstring to the dictionary of
     # {<parameter>: <value>} elements
-    params = dict(parse_qsl(paramstring))
     # Check the parameters passed to the plugin
 
     if params:
@@ -1377,52 +1381,127 @@ def load_shows_json(location = None):
         print("Finished Loading Shows (Fail)")
         return None
 
-def check_for_database(db_data, pickle_path):
+def test_connection(db_data, db_content):
+    connection_valid = False
+    connection_error = ""
+    connection_string = ""
+    preexisting_db = False
     if(db_data["db_format"] == "sqlite"):
+        connection_string = "Sqlite (File): {0}".format(db_data["data"]["path"])
         if(os.path.isfile(db_data["data"]["path"])):
-            return True
+            try:
+                if(db_content == "show"):
+                    db = BaseModel._meta.database
+                elif(db_content == "user"):
+                    db = UserBaseModel._meta.database
+                else:
+                    raise ValueError("Invalid db_content")
+                init_database(db, db_data)
+                db.connect()
+            except Exception,e:
+                connection_error = "File is not an sqlite database"
+            else:
+                connection_valid = True
+                preexisting_db = True
+        else:
+            try:
+                with open(db_data["data"]["path"], 'a'):
+                    os.utime(db_data["data"]["path"], None)
+                os.remove(db_data["data"]["path"])
+            except Exception, e:
+                connection_error = "Couldn't write to file."
+            else:
+                connection_valid = True
+
     elif(db_data["db_format"] == "mysql"):
+        if(len(db_data["data"]["password"]) > 0):
+            password = "(with password)"
+        else:
+            password = "(no password)"
+        connection_string = "mySQL: {0}@{1}:{2}/{3} {4}".format(
+            db_data["data"]["username"],
+            db_data["data"]["host"],
+            db_data["data"]["port"],
+            db_data["data"]["db"],
+            password
+        )
         try:
-            db = BaseModel._meta.database
+            if(db_content == "show"):
+                db = BaseModel._meta.database
+            elif(db_content == "user"):
+                db = UserBaseModel._meta.database
+            else:
+                raise ValueError("Invalid db_content")
             init_database(db, db_data)
             db.connect()
         except Exception,e:
-            print(str(e))
-            dialog = xbmcgui.Dialog()
-            dialog.ok('Loading Data', 'Could not connect to mysql database:', str(e))
-            return False
+            connection_error = "Couldn't connect to db"
+        else:
+            connection_valid = True
+            try:
+                if(db_content == "show"):
+                    lastupdaterows = LastUpdate.select()
+                elif(db_content == "user"):
+                    lastupdaterows = UserLastUpdate.select()
+                else:
+                    raise ValueError("Invalid db_content")
+                if(len(lastupdaterows) > 0):
+                    preexisting_db = True
+            except Exception,e:
+                pass
+    return [connection_valid, connection_error, connection_string, preexisting_db]
 
-        try:
-            lastupdaterows = LastUpdate.select()
-            if(len(lastupdaterows) > 0):
-                return True
-        except Exception,e:
-            print(str(e))
-            pass
+def check_for_database(db_data, user_db_data, pickle_path):
+    show_connection = test_connection(db_data, "show")
 
-
-    if(os.path.isfile(pickle_path)):
-        pDialog = xbmcgui.DialogProgress()
-        pDialog.create('Creating Database', 'Loading Shows...')
-        shows_obj = load_shows_json()
-        if(shows_obj == None):
-            dialog = xbmcgui.Dialog()
-            dialog.ok('Loading Data', 'Found pickled data but it is corrupted', "Failed File: {0}".format(pickle_path))
-            return False
-
-        pDialog.update(20,"Loading Shows... Done","Initialising Database...")
-        db = BaseModel._meta.database
-        init_database(db, db_data)
-        create_database()
-        pDialog.update(40,"Initialising Database... Done", "Populating Database...")
-        populate_database(shows_obj, pDialog)
-        pDialog.update(100,"Populating Database... Done", "", "")
-        return True
-    else:
+    if(show_connection[0] == False):
         dialog = xbmcgui.Dialog()
-        dialog.ok('Loading Data', 'Could not find a database of shows', "Expected: {0} to exist".format(pickle_path))
+        dialog.ok('Connecting to Show DB Failed', show_connection[1], show_connection[2])
+        xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
         return False
 
+    if(show_connection[3] == False):
+        print("Creating Shows Tables")
+        # Data not in Database
+        if(os.path.isfile(pickle_path)):
+            pDialog = xbmcgui.DialogProgress()
+            pDialog.create('Creating Database', 'Loading Shows...')
+            shows_obj = load_shows_json()
+            if(shows_obj == None):
+                dialog = xbmcgui.Dialog()
+                dialog.ok('Loading Data', 'Found pickled data but it is corrupted', "Failed File: {0}".format(pickle_path))
+                return False
+
+            pDialog.update(20,"Loading Shows... Done","Initialising Database...")
+            db = BaseModel._meta.database
+            init_database(db, db_data)
+            create_database(True, False)
+            pDialog.update(40,"Initialising Database... Done", "Populating Database...")
+            populate_database(shows_obj, pDialog)
+            pDialog.update(100,"Populating Database... Done", "", "")
+            return True
+        else:
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Loading Data', 'Could not find a pickled database of shows', "Expected: {0} to exist".format(pickle_path))
+            return False
+
+    user_connection = test_connection(user_db_data, "user")
+
+    if(user_connection[0] == False):
+        dialog = xbmcgui.Dialog()
+        dialog.ok('Connecting to User DB Failed', user_connection[1], user_connection[2])
+        xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
+        return False
+
+    if(user_connection[3] == False):
+        # Data not in database
+        print("Creating User Table")
+        user_db = UserBaseModel._meta.database
+        init_database(user_db, user_db_data)
+        create_database(False, True)
+        populate_user_database()
+
+    return True
 
 if __name__ == '__main__':
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -1433,6 +1512,12 @@ if __name__ == '__main__':
         "db_format": db_format,
         "data": {}
     }
+    user_db_format = xbmcaddon.Addon('plugin.video.redux').getSetting("user_db_format")
+    user_db_data = {
+        "db_format": db_format,
+        "data": {}
+    }
+
     if(db_format == "mysql"):
         db_data["data"]["host"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_hostname")
         db_data["data"]["port"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_port")
@@ -1455,15 +1540,68 @@ if __name__ == '__main__':
 
         db_data["data"]["path"] = database_path
     else:
-        raise ValueError("Invalid database provider")
+        raise ValueError("Invalid database provider (show)")
 
-    if(check_for_database(db_data, pickle_path)):
-        # Connect to Database
-        db = BaseModel._meta.database
-        init_database(db, db_data)
-        db.connect()
-        # Call the router function and pass the plugin call parameters to it.
-        # We use string slicing to trim the leading '?' from the plugin call paramstring
-        router(sys.argv[2][1:])
-        # Close Database
-        db.close()
+    use_same_db = xbmcaddon.Addon('plugin.video.redux').getSetting("user_use_same_db")
+    if(use_same_db == "true"):
+        user_db_data = db_data
+        user_db_format = db_format
+    else:
+        if(user_db_format == "mysql"):
+            user_db_data["data"]["host"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_hostname")
+            user_db_data["data"]["port"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_port")
+            user_db_data["data"]["username"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_username")
+            user_db_data["data"]["password"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_password")
+            user_db_data["data"]["db"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_db")
+        elif(user_db_format == "sqlite"):
+            user_database_folder = xbmcaddon.Addon('plugin.video.redux').getSetting("user_sqlite_db_folder")
+            if(user_database_folder.endswith("\\") or user_database_folder.endswith("/")):
+                pass
+            else:
+                user_database_folder = user_database_folder+"/"
+            user_database_folder = xbmc.translatePath(user_database_folder)
+            user_database_path = "{0}shows.db".format(user_database_folder)
+            user_db_data["data"]["path"] = user_database_path
+        else:
+            raise ValueError("Invalid database provider (user)")
+
+    params = dict(parse_qsl(sys.argv[2][1:]))
+    if 'action' in params and params['action'] == "test_connection":
+        pdialog = xbmcgui.DialogProgress()
+        pdialog.create("Testing DB Connection")
+
+        if(params['connection'] == "show"):
+            return_values = test_connection(db_data, "show")
+        elif(params['connection'] == "user"):
+            return_values = test_connection(user_db_data, "user")
+        else:
+            raise ValueError("Invalid connection parameter")
+        connection_valid = return_values[0]
+        connection_error = return_values[1]
+        connection_string = return_values[2]
+
+        if(connection_valid):
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Testing DB Connection', 'Successful!', '', connection_string)
+        else:
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Testing DB Connection', 'Failed:', connection_error, connection_string)
+
+        xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
+    else:
+        if(check_for_database(db_data, user_db_data, pickle_path)):
+            # Connect to Database
+            db = BaseModel._meta.database
+            init_database(db, db_data)
+            db.connect()
+
+            db2 = UserBaseModel._meta.database
+            init_database(db2, user_db_data)
+            db2.connect()
+            # Call the router function and pass the plugin call parameters to it.
+            # We use string slicing to trim the leading '?' from the plugin call paramstring
+
+            router(params)
+            # Close Database
+            db.close()
+            db2.close()

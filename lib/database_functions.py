@@ -1,7 +1,8 @@
 # models.py
 from lib import peewee
 
-from lib.database_schema import FavouriteShow, Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
+from lib.user_database_schema import UserFavouriteShow, UserLastUpdate, UserBaseModel
 
 try:
     from cStringIO import StringIO
@@ -16,51 +17,89 @@ try:
 except:
    import pickle
 
-def clear_database(clear_user_tables = False):
-    db = BaseModel._meta.database
-    db.connect()
+def init_database(db_proxy, db_data):
+    if(db_data["db_format"] == "mysql"):
+        # Remap blob to mediumblob as season can get larger then blob will allow in mySQL.
+        database = peewee.MySQLDatabase(db_data["data"]["db"], host=db_data["data"]["host"], port=int(db_data["data"]["port"]), user=db_data["data"]["username"], password=db_data["data"]["password"], fields={'blob': 'mediumblob' })
+        db_proxy.initialize(database)
+    elif(db_data["db_format"] == "sqlite"):
+        database = peewee.SqliteDatabase(db_data["data"]["path"])
+        db_proxy.initialize(database)
+
+def clear_database(clear_show_tables = False, clear_user_tables = False):
     if(clear_user_tables):
-        User.delete_instance()
+        db = UserBaseModel._meta.database
+        db.connect()
+        UserFavouriteShow.delete_instance()
+        UserLastUpdate.delete_instance()
+        db.close()
 
-    Show.delete_instance()
-    Genre.delete_instance()
-    RecentShows.delete_instance()
-    ShowGenre.delete_instance()
-    ShowGenre.delete_instance()
-    ShowSubGenre.delete_instance()
-    GenreToSubGenre.delete_instance()
-    Actor.delete_instance()
-    ShowActor.delete_instance()
-    Year.delete_instance()
-    LastUpdate.delete_instance()
-    db.close()
+    if(clear_show_tables):
+        db = BaseModel._meta.database
+        db.connect()
+        Show.delete_instance()
+        Genre.delete_instance()
+        RecentShows.delete_instance()
+        ShowGenre.delete_instance()
+        ShowGenre.delete_instance()
+        ShowSubGenre.delete_instance()
+        GenreToSubGenre.delete_instance()
+        Actor.delete_instance()
+        ShowActor.delete_instance()
+        Year.delete_instance()
+        LastUpdate.delete_instance()
+        db.close()
 
-def create_database():
-    db = BaseModel._meta.database
+def create_database(create_show_tables = True, create_user_tables = True):
+    if(create_user_tables):
+        db = UserBaseModel._meta.database
+        db.connect()
+        tables = [
+            [UserFavouriteShow,"UserFavouriteShow"],
+            [UserLastUpdate, "UserLastUpdate"]
+        ]
+        for table in tables:
+            try:
+                table[0].create_table()
+            except peewee.InternalError, e:
+                print(str(e))
+                print("{0} table already exists!".format(table[1]))
+            else:
+                print("{0} table created".format(table[1]))
+        db.close()
+
+    if(create_show_tables):
+        db = BaseModel._meta.database
+        db.connect()
+        tables = [
+            [Show,"Show"],
+            [Genre, "Genre"],
+            [RecentShows, "RecentShows"],
+            [ShowGenre, "ShowGenre"],
+            [SubGenre, "SubGenre"],
+            [ShowSubGenre, "ShowSubGenre"],
+            [GenreToSubGenre, "GenreToSubGenre"],
+            [Actor, "Actor"],
+            [ShowActor, "ShowActor"],
+            [Year, "Year"],
+            [LastUpdate, "LastUpdate"]
+        ]
+        for table in tables:
+            try:
+                table[0].create_table()
+            except peewee.InternalError, e:
+                print(str(e))
+                print("{0} table already exists!".format(table[1]))
+            else:
+                print("{0} table created".format(table[1]))
+        db.close()
+
+def populate_user_database():
+    db = UserBaseModel._meta.database
     db.connect()
-    tables = [
-        [FavouriteShow,"FavouriteShow"],
-        [Show,"Show"],
-        [Genre, "Genre"],
-        [RecentShows, "RecentShows"],
-        [ShowGenre, "ShowGenre"],
-        [SubGenre, "SubGenre"],
-        [ShowSubGenre, "ShowSubGenre"],
-        [GenreToSubGenre, "GenreToSubGenre"],
-        [Actor, "Actor"],
-        [ShowActor, "ShowActor"],
-        [Year, "Year"],
-        [LastUpdate, "LastUpdate"]
-    ]
-    for table in tables:
-        try:
-            table[0].create_table()
-        except peewee.OperationalError, e:
-            print(str(e))
-            print("{0} table already exists!".format(table[1]))
-        else:
-            print("{0} table created".format(table[1]))
-    db.close()
+    UserLastUpdate(
+        date = "0000-00-00"
+    ).save()
 
 def populate_database(shows_obj, pDialog= None):
     db = BaseModel._meta.database
