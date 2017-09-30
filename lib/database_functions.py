@@ -1,8 +1,8 @@
 # models.py
 from lib import peewee
 
-from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, BaseModel
-from lib.user_database_schema import UserFavouriteShow, UserLastUpdate, UserBaseModel
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, DBVersion ,BaseModel
+from lib.user_database_schema import UserFavouriteShow, UserReduxResolve, UserReduxFile, UserLastUpdate, UserDBVersion, UserBaseModel
 
 try:
     from cStringIO import StringIO
@@ -16,6 +16,13 @@ try:
    import cPickle as pickle
 except:
    import pickle
+
+
+def get_showdb_version():
+    return 1
+
+def get_userdb_version():
+    return 2
 
 def init_database(db_proxy, db_data):
     if(db_data["db_format"] == "mysql"):
@@ -50,13 +57,16 @@ def clear_database(clear_show_tables = False, clear_user_tables = False):
         LastUpdate.delete_instance()
         db.close()
 
-def create_database(create_show_tables = True, create_user_tables = True):
+def create_database(create_show_tables = True, create_user_tables = True, show_version = 1, user_version = 1):
     if(create_user_tables):
         db = UserBaseModel._meta.database
         db.connect()
         tables = [
             [UserFavouriteShow,"UserFavouriteShow"],
-            [UserLastUpdate, "UserLastUpdate"]
+            [UserReduxResolve, "UserReduxResolve"],
+            [UserReduxFile, "UserReduxFile"],
+            [UserLastUpdate, "UserLastUpdate"],
+            [UserDBVersion, "UserDBVersion"]
         ]
         for table in tables:
             try:
@@ -66,6 +76,10 @@ def create_database(create_show_tables = True, create_user_tables = True):
                 print("{0} table already exists!".format(table[1]))
             else:
                 print("{0} table created".format(table[1]))
+        UserDBVersion.delete().where(True).execute()
+        UserDBVersion(
+            version = user_version
+        ).save()
         db.close()
 
     if(create_show_tables):
@@ -82,7 +96,8 @@ def create_database(create_show_tables = True, create_user_tables = True):
             [Actor, "Actor"],
             [ShowActor, "ShowActor"],
             [Year, "Year"],
-            [LastUpdate, "LastUpdate"]
+            [LastUpdate, "LastUpdate"],
+            [DBVersion, "DBVersion"]
         ]
         for table in tables:
             try:
@@ -92,6 +107,10 @@ def create_database(create_show_tables = True, create_user_tables = True):
                 print("{0} table already exists!".format(table[1]))
             else:
                 print("{0} table created".format(table[1]))
+        DBVersion.delete().where(True).execute()    
+        DBVersion(
+            version = show_version
+        ).save()
         db.close()
 
 def populate_user_database():

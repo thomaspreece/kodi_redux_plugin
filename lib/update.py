@@ -26,7 +26,7 @@ try:
 except:
     xbmc_libraries_loaded = False
 
-def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
+def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_to_interpreter = False):
     if(xbmc_libraries_loaded == False and xbmc == True):
         raise ValueError("Could not load XBMC Libraries")
 
@@ -39,9 +39,17 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
 
     shows = {"shows": {}, "parsed": None, "failed_files": [], "genres": {}, "recent": []}
 
-    if os.path.isfile("{0}/shows.pickle".format(script_dir)):
-        shows = parseSchedule.load_shows("{0}/shows.pickle".format(script_dir))
-        print("Parsing: {0}".format(shows["parsed"]))
+    if pickle_file != None:
+        if os.path.isfile(pickle_file):
+            shows = parseSchedule.load_shows(pickle_file)
+            print("Parsing: {0}".format(shows["parsed"]))
+        else:
+            if(xbmc):
+                dialog = xbmcgui.Dialog()
+                dialog.ok(90,"Error","Pickle file not found")
+                return
+            else:
+                raise ValueError("Invalid pickle_file location")
     if(xbmc):
         pDialog.update(5,"Loading Shows... Done","Creating Schedule Download List...")
         if (pDialog.iscanceled()): return
@@ -50,7 +58,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("Creating Schedule Download List")
 
     # ========= Download Schedules Overview from BBC =========
-    download_list = download_lists.get_bbc_programmes_schedule_download_list(False, shows["parsed"], script_dir+"/")
+    download_list = download_lists.get_bbc_programmes_schedule_download_list(False, shows["parsed"], save_dir+"/")
 
     if(xbmc):
         pDialog.update(10, "Creating Schedule Download List...Done","Downloading Schedules...","("+str(len(download_list))+")")
@@ -72,7 +80,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("Parsing Schedules For Further Download Links")
 
     # Extracts list of episode programme PIDS from daily html schedules
-    download_list = download_lists.get_schedule_items(shows["parsed"], script_dir+"/")
+    download_list = download_lists.get_schedule_items(shows["parsed"], save_dir+"/")
 
     # ========= Download Detailed Schedule Items from BBC =========
     if(xbmc):
@@ -104,14 +112,14 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("Parsing Schedules")
 
     # Take download schedules and update shows object
-    shows = parseSchedule.get_shows(shows, script_dir+"/")
+    shows = parseSchedule.get_shows(shows, save_dir+"/")
 
     if(xbmc):
         pDialog.update(35, "Parsing Schedules...Done","Creating Shows Download List...")
         if (pDialog.iscanceled()): return
 
     # ========= Download Shows Data from BBC & Merge =========
-    download_list_2 = download_lists.get_bbc_programmes_show_download_list(shows["shows"], False, script_dir+"/")
+    download_list_2 = download_lists.get_bbc_programmes_show_download_list(shows["shows"], False, save_dir+"/")
 
     if(xbmc):
         pDialog.update(40,"Creating Shows Download List...Done","Downloading Shows...","("+str(len(download_list_2))+")")
@@ -130,7 +138,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("")
         print("Parsing Shows")
 
-    shows["shows"] = parseSchedule.merge_shows_files(shows, script_dir+"/")
+    shows["shows"] = parseSchedule.merge_shows_files(shows, save_dir+"/")
 
     if(xbmc):
         pDialog.update(50,"Parsing Shows...Done","Creating TVDB Download List...")
@@ -140,7 +148,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("Creating TVDB Download List")
 
     # ========= Download Shows Data from TVDB & Merge =========
-    download_list_3 = download_lists.get_tvdb_show_download_list(shows["shows"], False, script_dir+"/")
+    download_list_3 = download_lists.get_tvdb_show_download_list(shows["shows"], False, save_dir+"/")
 
     if(xbmc):
         pDialog.update(55,"Creating TVDB Download List...Done","Downloading TVDB...","("+str(len(download_list_3))+")")
@@ -159,7 +167,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("")
         print("Parsing TVDB")
 
-    shows["shows"] = parseSchedule.merge_tvdb_files(shows["shows"], script_dir+"/")
+    shows["shows"] = parseSchedule.merge_tvdb_files(shows["shows"], save_dir+"/")
 
     if(xbmc):
         pDialog.update(65,"Parsing TVDB...Done","Creating MovieDB Download List...")
@@ -227,19 +235,19 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
         print("Saving Updated Shows")
 
     # ========= Save Shows =========
-    parseSchedule.save_shows(shows,"{0}/shows.pickle".format(script_dir))
+    parseSchedule.save_shows(shows,"{0}/shows.pickle".format(save_dir))
 
     if(xbmc):
         pDialog.update(100,"Saving Updated Shows...Done")
-        if os.path.isdir("{0}/show-scrape-tvdb/".format(script_dir)):
-            shutil.rmtree("{0}/show-scrape-tvdb/".format(script_dir))
-        if os.path.isdir("{0}/schedule-scrape-bbc/".format(script_dir)):
-            shutil.rmtree("{0}/schedule-scrape-bbc/".format(script_dir))
-        if os.path.isdir("{0}/show-scrape-bbc/".format(script_dir)):
-            shutil.rmtree("{0}/show-scrape-bbc/".format(script_dir))
+        if os.path.isdir("{0}/show-scrape-tvdb/".format(save_dir)):
+            shutil.rmtree("{0}/show-scrape-tvdb/".format(save_dir))
+        if os.path.isdir("{0}/schedule-scrape-bbc/".format(save_dir)):
+            shutil.rmtree("{0}/schedule-scrape-bbc/".format(save_dir))
+        if os.path.isdir("{0}/show-scrape-bbc/".format(save_dir)):
+            shutil.rmtree("{0}/show-scrape-bbc/".format(save_dir))
         pDialog.close()
 
-    db_file = "{0}/shows.db".format(script_dir)
+    db_file = "{0}/shows.db".format(save_dir)
 
     if(os.path.isfile(db_file)):
         try:
@@ -257,7 +265,7 @@ def update(script_dir = ".", xbmc = True, return_to_interpreter = False):
             print("")
             print("Invalid DB File")
             os.remove(db_file)
-            
+
     if(not os.path.isfile(db_file) or db_update_date < json_update_date):
         if(xbmc):
             pDialog = xbmcgui.DialogProgress()

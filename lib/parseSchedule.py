@@ -19,14 +19,14 @@ import code
 
 import glob
 
-def load_shows(location = "shows.pickle"):
+def load_shows(location):
     if os.path.isfile(location):
         shows = pickle.load( open( location, "rb" ) )
         return shows
     else:
         raise ValueError("Could not find {0}".format(location))
 
-def save_shows(shows, location = "shows.pickle"):
+def save_shows(shows, location):
     if(shows):
         if os.path.isfile(location):
             os.remove(location)

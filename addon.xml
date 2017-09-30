@@ -28,4 +28,5 @@ provider-name="TomPreece">
 	<screenshot>resources\screenshot-05.jpg</screenshot>
   </assets>
 </extension>
+<extension point="xbmc.service" library="background.py" start="login"/> 
 </addon>

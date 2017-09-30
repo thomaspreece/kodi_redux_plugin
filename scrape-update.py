@@ -16,18 +16,18 @@ from lib import download_lists
 from lib import parseSchedule
 
 from lib import update
+from lib import xbmc_util
 
 import traceback
 
 import xbmcgui
 import xbmc
 
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+__profile__ = xbmc_util.get_user_dir()
 
 if __name__ == "__main__":
     try:
-        raise ValueError("Ooops")
-        update.update(SCRIPT_DIR, True)
+        update.update("{0}/shows.pickle".format(__profile__), __profile__, True)
     except Exception, e:
         print(str(e))
         traceback.print_exc()

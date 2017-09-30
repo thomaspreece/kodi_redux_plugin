@@ -42,18 +42,6 @@ def emptyStr(s):
     else:
         return False
 
-def convert_format(vidformat):
-    if(vidformat == "Original stream"):
-        return "ts"
-    elif(vidformat == "H264 large"):
-        return "h264_mp4_hi"
-    elif(vidformat == "H264 small"):
-        return "h264_mp4_lo"
-    else:
-        print("Invalid Format!")
-        xbmcgui.Dialog().ok('Converting Format Setting', "The Setting {0} is invalid".format(vidformat))
-        return ""
-
 def getManualSetting(settingName):
     filename = 'Setting-NonKodi.json'
     try:

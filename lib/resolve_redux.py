@@ -6,8 +6,12 @@ import xbmcplugin
 import xbmcgui
 import xbmcaddon
 
+from lib.xbmc_util import get_user_dir
+
 import sys
 import os
+
+__profile__ = get_user_dir()
 
 def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
     episode_json = show_json["season"][season_num]["episode"][episode_num]

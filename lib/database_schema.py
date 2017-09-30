@@ -110,3 +110,6 @@ class LastUpdate(BaseModel):
     ORM model detailing the last update date
     """
     date = peewee.CharField(max_length=26)
+
+class DBVersion(BaseModel):
+    version = peewee.IntegerField()

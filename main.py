@@ -10,12 +10,14 @@ from urlparse import parse_qsl
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
+import shutil
+import datetime
 
-from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, BaseModel
-from lib.user_database_schema import UserFavouriteShow, UserLastUpdate, UserBaseModel
-from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database
+from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, DBVersion, BaseModel
+from lib.user_database_schema import UserFavouriteShow, UserReduxResolve, UserLastUpdate, UserDBVersion, UserBaseModel
+from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database, get_userdb_version, get_showdb_version
 
-
+import json
 
 import os
 try:
@@ -29,13 +31,19 @@ from lib import util
 
 import traceback
 
+from lib import xbmc_util
+
+import xbmc
+
+__ShowDBVersion__ = get_showdb_version()
+__UserDBVersion__ = get_userdb_version()
+
 # Get the plugin url in plugin:// notation.
 _url = sys.argv[0]
 # Get the plugin handle as an integer number.
 _handle = int(sys.argv[1])
 
-__addon__ = xbmcaddon.Addon()
-__profile__ = xbmc.translatePath( __addon__.getAddonInfo('profile') ).decode("utf-8")
+__profile__ = xbmc_util.get_user_dir()
 
 DEFAULT_FANART = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/fanart.jpg')
 DEFAULT_ICON = xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/lists.png')
@@ -88,6 +96,9 @@ CHANNELS = [
                     'fanart': xbmc.translatePath('special://home/addons/plugin.video.redux/resources/media/bbc_films_ident.jpg')}
     ]
 
+def get_url_query(**kwargs):
+    return '?{0}'.format(urlencode(kwargs))
+
 def get_url(**kwargs):
     """
     Create a URL for calling the plugin recursively from the given set of keyword arguments.
@@ -132,6 +143,37 @@ def list_search():
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+def list_parental_controls():
+    parental_file = "{0}/parental.json".format(__profile__)
+    if(os.path.isfile(parental_file)):
+        list_item = xbmcgui.ListItem(label="Remove PIN")
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        list_item.setInfo('video', {'title': "Remove PIN", 'genre': "Parental Controls"})
+        url = get_url(action='parental', selection="Remove PIN")
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+        list_item = xbmcgui.ListItem(label="Change PIN")
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        list_item.setInfo('video', {'title': "Change PIN", 'genre': "Parental Controls"})
+        url = get_url(action='parental', selection="Change PIN")
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    else:
+        list_item = xbmcgui.ListItem(label="Add PIN")
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        list_item.setInfo('video', {'title': "Add PIN", 'genre': "Parental Controls"})
+        url = get_url(action='parental', selection="Add PIN")
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    xbmcplugin.endOfDirectory(_handle)
+
 def list_menu():
     """
     Create the list of video categories in the Kodi interface.
@@ -159,6 +201,17 @@ def list_menu():
         # is_folder = True means that this item opens a sub-list of lower level items.
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+
+    show_parental_controls = xbmcaddon.Addon('plugin.video.redux').getSetting("show_parental_controls")
+    if(show_parental_controls == "true"):
+        list_item = xbmcgui.ListItem(label="Parental Controls")
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        list_item.setInfo('video', {'title': "Parental Controls", 'genre': "Parental Controls"})
+        url = get_url(action='menu', selection="Parental Controls")
+        is_folder = True
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     # xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
@@ -714,10 +767,9 @@ def list_episodes(show_name, season):
         else:
             title = "E{0}".format(episode)
         list_item = xbmcgui.ListItem(label=title)
+        list_item.setProperty('IsPlayable', 'true')
 
         list_item = set_episode_metadata(show,season,episode,list_item)
-
-        list_item.setProperty('IsPlayable', 'true')
         url = get_url(action='play_episode', show=show_name.encode("utf-8"), season=season, episode=episode)
         # is_folder = True means that this item opens a sub-list of lower level items.
         is_folder = False
@@ -731,9 +783,8 @@ def list_episodes(show_name, season):
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
-def play_episode(show, season, episode):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    loginfile = '{0}/reduxLogin.txt'.format(script_dir)
+def play_episode(show, season, episode, format_override):
+    loginfile = '{0}/reduxLogin.txt'.format(__profile__)
 
     pDialog = xbmcgui.DialogProgress()
     pDialog.create('Playing Episode', 'Loading Shows...')
@@ -749,46 +800,80 @@ def play_episode(show, season, episode):
     if(redux_token == ""):
         return
 
-    pDialog.update(50,"Contacting Redux... Done","Getting Disc Ref...")
+    redux_ref_rows = UserReduxResolve.select().where(
+        (UserReduxResolve.show == show["title"]) &
+        (UserReduxResolve.season == season) &
+        (UserReduxResolve.episode == episode)
+    )
 
-    # Needs to Check that a h264 version is available and also check that a non regions version is available
-
-    [error,ref] = resolve_redux.resolve_episode_ref(redux_token, show, season, episode)
-    print([error,ref])
-    pDialog.update(75,"Contacting Redux... Done","Getting Disc Ref... Done","Resolving to URL...")
-    if (error > -1):
-        urls = resolve_redux.resolve_episode_url(redux_token, ref)
-        print(urls)
-
-        if urls == None:
-            xbmcgui.Dialog().ok('Playing Episode', "Could not resolve disc reference from Redux")
-            return
-        else:
-            print("URLs: {0}".format(urls))
-            pDialog.update(100,"Contacting Redux... Done","Getting Disc Ref... Done","Resolving to URL... Done")
+    if(len(redux_ref_rows) > 0):
+        ref = redux_ref_rows[0].diskref
+        error = 0
     else:
+        pDialog.update(50,"Contacting Redux... Done","Getting Disc Ref...")
+        # Needs to Check that a h264 version is available and also check that a non regions version is available
+        [error,ref] = resolve_redux.resolve_episode_ref(redux_token, show, season, episode)
+        print([error,ref])
+        if (error > -1):
+            UserReduxResolve(
+                show=show["title"],
+                season=season,
+                episode=episode,
+                diskref=ref
+            ).save()
+
+    pDialog.update(75,"Contacting Redux... Done","Getting Disc Ref... Done","Resolving to URL...")
+
+    if (error < 0):
         xbmcgui.Dialog().ok('Playing Episode', "Could not get disc reference from Redux")
         return
 
-    requested_format_setting = xbmcplugin.getSetting(_handle,"format")
-    requested_format = util.convert_format(requested_format_setting)
-    if (requested_format in urls):
-        url = urls[requested_format]
+    urls = resolve_redux.resolve_episode_url(redux_token, ref)
+    for key in urls.keys():
+        UserReduxFile(
+            show=show["title"],
+            season=season,
+            episode=episode,
+            url=urls[key],
+            encoding=key,
+            time=datetime.datetime.now()
+        ).save()
+
+    print(urls)
+
+    if urls == None:
+        xbmcgui.Dialog().ok('Playing Episode', "Could not resolve disc reference from Redux")
+        return
     else:
-        if(len(urls.keys()) == 1):
-            play_original = xbmcgui.Dialog().yesno("Playing Episode", "Cannot find a version of episode in {0}. Play 'Original stream' format instead?".format(requested_format_setting))
-            if(play_original):
-                url = urls["ts"]
-            else:
-                return
+        print("URLs: {0}".format(urls))
+        pDialog.update(100,"Contacting Redux... Done","Getting Disc Ref... Done","Resolving to URL... Done")
+
+    if(format_override == "True"):
+        play = xbmcgui.Dialog().select("Which format should I play?", urls.keys(), useDetails=True)
+        if (play < 0 ):
+            return
         else:
-            play = xbmcgui.Dialog().select("Cannot find a version of episode in {0}. Play another format instead?".format(requested_format_setting), urls.keys(), useDetails=True)
-            if (play < 0 ):
-                return
+            url = urls[urls.keys()[play]]
+    else:
+        requested_format_setting = xbmcplugin.getSetting(_handle,"format")
+        requested_format = xbmc_util.convert_format(requested_format_setting)
+        if (requested_format in urls):
+            url = urls[requested_format]
+        else:
+            if(len(urls.keys()) == 1):
+                play_original = xbmcgui.Dialog().yesno("Playing Episode", "Cannot find a version of episode in {0}. Play 'Original stream' format instead?".format(requested_format_setting))
+                if(play_original):
+                    url = urls["ts"]
+                else:
+                    return
             else:
-                url = urls[urls.keys()[play]]
+                play = xbmcgui.Dialog().select("Cannot find a version of episode in {0}. Play another format instead?".format(requested_format_setting), urls.keys(), useDetails=True)
+                if (play < 0 ):
+                    return
+                else:
+                    url = urls[urls.keys()[play]]
 
-
+    pDialog.close()
     # Create a playable item with a path to play.
     play_item = xbmcgui.ListItem(path=url)
     # Pass the item to the Kodi player.
@@ -868,7 +953,12 @@ def set_episode_metadata(show,season,episode,list_item):
     if len(show["banner"]) > 0:
         list_item.setArt({'banner': show["banner"][0]})
 
-    list_item.addContextMenuItems([("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')])
+    url = get_url(action='play_episode', show=show["title"].encode("utf-8"), season=season, episode=episode, format=True)
+
+    list_item.addContextMenuItems([
+        ("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')'),
+        ("Play (ask me for format)","xbmc.RunPlugin({0})".format(url))
+    ])
 
     list_item.setInfo('video', {'title': title})
     if(len(show["genres"]) > 0):
@@ -1255,6 +1345,72 @@ def mark_favourite(show_name, unfavourite = False):
             dialog.ok('Removing Favourite', '{0} is not in favourites'.format(show_name))
     xbmc.executebuiltin("Container.Refresh")
 
+def check_parental_pin():
+    parental_file = "{0}/parental.json".format(__profile__)
+    if os.path.isfile(parental_file):
+        entered_pin = xbmcgui.Dialog().numeric(0,'Enter existing PIN')
+        pin_status = check_pin(parental_file, entered_pin)
+        if(pin_status == -1):
+            return
+        elif(pin_status == False):
+            xbmcgui.Dialog().ok("Error","PIN incorrect")
+            return
+    # list_item = xbmcgui.ListItem(label="Continue")
+    # list_item.setArt({'thumb': DEFAULT_ICON,
+    #                   'icon': DEFAULT_ICON,
+    #                   'fanart': DEFAULT_FANART})
+    # list_item.setInfo('video', {'title': "Continue", 'genre': "Parental Controls"})
+    url = get_url(action='list_menu')
+    # is_folder = True
+    # xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # xbmcplugin.endOfDirectory(_handle)
+
+    xbmc.executebuiltin("xbmc.ReplaceWindow(Videos, {0})".format(url))
+
+def check_pin(parental_file, pin):
+    try:
+        with open(parental_file) as data_file:
+            parental_data = json.load(data_file)
+        if(parental_data["PIN"] == pin):
+            return True
+        else:
+            return False
+    except:
+        xbmcgui.Dialog().ok("Error","PIN file corrupt. Removing.")
+        os.remove(parental_file)
+        return -1
+
+def save_pin(parental_file, pin):
+    if(os.path.isfile(parental_file)):
+        xbmcgui.Dialog().ok("Error","PIN file already exists")
+        return
+    json_data = {"PIN": pin}
+    with open(parental_file, 'w') as outfile:
+        json.dump(json_data, outfile)
+
+def pin_control(selection):
+    parental_file = "{0}/parental.json".format(__profile__)
+    if(params['selection'] == "Remove PIN" or params['selection'] == "Change PIN"):
+        entered_pin = xbmcgui.Dialog().numeric(0,'Enter existing PIN')
+        pin_status = check_pin(parental_file, entered_pin)
+        if(pin_status == -1):
+            return
+        elif(pin_status == False):
+            xbmcgui.Dialog().ok("Error","PIN incorrect")
+            return
+        os.remove(parental_file)
+
+    if(params['selection'] == "Remove PIN"):
+        xbmcgui.Dialog().ok("Success","PIN removed")
+        return
+
+    new_pin = xbmcgui.Dialog().numeric(0,'Enter new PIN')
+    new_pin_confirm = xbmcgui.Dialog().numeric(0,'Confirm new PIN')
+    if(new_pin != new_pin_confirm):
+        xbmcgui.Dialog().ok("Error","PINs do not match")
+    else:
+        save_pin(parental_file, new_pin)
+
 def router(params):
     """
     Router function that calls other functions
@@ -1267,8 +1423,16 @@ def router(params):
     # {<parameter>: <value>} elements
     # Check the parameters passed to the plugin
 
+
     if params:
-        if params['action'] == 'favourite_mark':
+        print(params)
+        if params["action"] == "list_menu":
+            list_menu()
+        elif params['action'] == "parental":
+            if(params['selection'] != "Add PIN" and params['selection'] != "Remove PIN" and params['selection'] != "Change PIN"):
+                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+            pin_control(params['selection'])
+        elif params['action'] == 'favourite_mark':
             if(params['unfavourite'] == "True"):
                 mark_favourite(params['show'], True)
             else:
@@ -1287,6 +1451,8 @@ def router(params):
                 update_shows()
             elif params['selection'] == "Search":
                 list_search()
+            elif params['selection'] == "Parental Controls":
+                list_parental_controls()
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
 
@@ -1347,7 +1513,10 @@ def router(params):
             list_episodes(params['show'],params['season'])
         elif params['action'] == 'play_episode':
             # Play a video by querying redux.
-            play_episode(params['show'],params['season'],params["episode"])
+            if("format" in params):
+                play_episode(params['show'],params['season'],params["episode"],params["format"])
+            else:
+                play_episode(params['show'],params['season'],params["episode"],None)
         else:
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
@@ -1356,7 +1525,7 @@ def router(params):
     else:
         # If the plugin is called from Kodi UI without any parameters,
         # display the list of video categories
-        list_menu()
+        check_parental_pin()
 
 
 SEARCHMENU = [
@@ -1367,9 +1536,8 @@ SEARCHMENU = [
 
 def load_shows_json(location = None):
     print("Loading Shows")
-    script_dir = os.path.dirname(os.path.realpath(__file__))
     if location == None:
-        location = "{0}/shows.pickle".format(script_dir)
+        location = "{0}/shows.pickle".format(__profile__)
     if os.path.isfile(location):
         f = open( location, "rb" )
         shows_obj = pickle.load( f )
@@ -1386,6 +1554,7 @@ def test_connection(db_data, db_content):
     connection_error = ""
     connection_string = ""
     preexisting_db = False
+    update_db = False
     if(db_data["db_format"] == "sqlite"):
         connection_string = "Sqlite (File): {0}".format(db_data["data"]["path"])
         if(os.path.isfile(db_data["data"]["path"])):
@@ -1399,10 +1568,28 @@ def test_connection(db_data, db_content):
                 init_database(db, db_data)
                 db.connect()
             except Exception,e:
+                print("Connection Fail")
+                print(str(e))
                 connection_error = "File is not an sqlite database"
             else:
                 connection_valid = True
                 preexisting_db = True
+                try:
+                    if(db_content == "show"):
+                        db_version_rows = DBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < __ShowDBVersion__):
+                                update_db = True
+                    elif(db_content == "user"):
+                        db_version_rows = UserDBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < __ShowDBVersion__):
+                                update_db = True
+                except Exception,e:
+                    print("DBVersion Fail")
+                    print(str(e))
+                    update_db = True
+                db.close()
         else:
             try:
                 with open(db_data["data"]["path"], 'a'):
@@ -1435,6 +1622,8 @@ def test_connection(db_data, db_content):
             init_database(db, db_data)
             db.connect()
         except Exception,e:
+            print("Connection Fail")
+            print(str(e))
             connection_error = "Couldn't connect to db"
         else:
             connection_valid = True
@@ -1448,19 +1637,45 @@ def test_connection(db_data, db_content):
                 if(len(lastupdaterows) > 0):
                     preexisting_db = True
             except Exception,e:
+                print("Last Update Fail")
+                print(str(e))
                 pass
-    return [connection_valid, connection_error, connection_string, preexisting_db]
+            else:
+                try:
+                    if(db_content == "show"):
+                        db_version_rows = DBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < __ShowDBVersion__):
+                                update_db = True
+                    elif(db_content == "user"):
+                        db_version_rows = UserDBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < __UserDBVersion__):
+                                update_db = True
+                except Exception,e:
+                    print("DBVersion Fail")
+                    print(str(e))
+                    update_db = True
+            db.close()
+
+    return {
+        "connection_valid": connection_valid,
+        "connection_error": connection_error,
+        "connection_string": connection_string,
+        "preexisting_db": preexisting_db,
+        "update_db": update_db
+    }
 
 def check_for_database(db_data, user_db_data, pickle_path):
     show_connection = test_connection(db_data, "show")
 
-    if(show_connection[0] == False):
+    if(show_connection["connection_valid"] == False):
         dialog = xbmcgui.Dialog()
-        dialog.ok('Connecting to Show DB Failed', show_connection[1], show_connection[2])
+        dialog.ok('Connecting to Show DB Failed', show_connection["connection_error"], show_connection["connection_string"])
         xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
         return False
 
-    if(show_connection[3] == False):
+    if(show_connection["preexisting_db"] == False):
         print("Creating Shows Tables")
         # Data not in Database
         if(os.path.isfile(pickle_path)):
@@ -1475,7 +1690,7 @@ def check_for_database(db_data, user_db_data, pickle_path):
             pDialog.update(20,"Loading Shows... Done","Initialising Database...")
             db = BaseModel._meta.database
             init_database(db, db_data)
-            create_database(True, False)
+            create_database(True, False, __ShowDBVersion__, __UserDBVersion__)
             pDialog.update(40,"Initialising Database... Done", "Populating Database...")
             populate_database(shows_obj, pDialog)
             pDialog.update(100,"Populating Database... Done", "", "")
@@ -1484,86 +1699,50 @@ def check_for_database(db_data, user_db_data, pickle_path):
             dialog = xbmcgui.Dialog()
             dialog.ok('Loading Data', 'Could not find a pickled database of shows', "Expected: {0} to exist".format(pickle_path))
             return False
+    elif(show_connection["update_db"] == True):
+        pDialog = xbmcgui.DialogProgress()
+        pDialog.create('Updating Database', 'Updating Tables...')
+        db = BaseModel._meta.database
+        init_database(db, db_data)
+        create_database(True, False, __ShowDBVersion__, __UserDBVersion__)
+        pDialog.update(100,"Updating Tables... Done", "", "")
 
     user_connection = test_connection(user_db_data, "user")
 
-    if(user_connection[0] == False):
+    if(user_connection["connection_valid"] == False):
         dialog = xbmcgui.Dialog()
-        dialog.ok('Connecting to User DB Failed', user_connection[1], user_connection[2])
+        dialog.ok('Connecting to User DB Failed', user_connection["connection_error"], user_connection["connection_string"])
         xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
         return False
 
-    if(user_connection[3] == False):
+    if(user_connection["preexisting_db"] == False):
         # Data not in database
         print("Creating User Table")
         user_db = UserBaseModel._meta.database
         init_database(user_db, user_db_data)
-        create_database(False, True)
+        create_database(False, True, __ShowDBVersion__, __UserDBVersion__)
         populate_user_database()
+    elif(user_connection["update_db"] == True):
+        pDialog = xbmcgui.DialogProgress()
+        pDialog.create('Updating User Database', 'Updating Tables...')
+        db = BaseModel._meta.database
+        init_database(db, db_data)
+        create_database(False, True, __ShowDBVersion__, __UserDBVersion__)
+        pDialog.update(100,"Updating Tables... Done", "", "")
 
     return True
 
 if __name__ == '__main__':
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    pickle_path = "{0}/shows.pickle".format(script_dir)
 
-    db_format = xbmcaddon.Addon('plugin.video.redux').getSetting("db_format")
-    db_data = {
-        "db_format": db_format,
-        "data": {}
-    }
-    user_db_format = xbmcaddon.Addon('plugin.video.redux').getSetting("user_db_format")
-    user_db_data = {
-        "db_format": db_format,
-        "data": {}
-    }
+    packaged_pickle_file = "{0}/shows.pickle".format(script_dir)
+    pickle_file = "{0}/shows.pickle".format(__profile__)
 
-    if(db_format == "mysql"):
-        db_data["data"]["host"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_hostname")
-        db_data["data"]["port"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_port")
-        db_data["data"]["username"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_username")
-        db_data["data"]["password"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_password")
-        db_data["data"]["db"] = xbmcaddon.Addon('plugin.video.redux').getSetting("mysql_db")
-    elif(db_format == "sqlite"):
-        use_custom_db_path = xbmcaddon.Addon('plugin.video.redux').getSetting("sqlite_use_db_folder")
-        if(use_custom_db_path == "true"):
-            database_folder = xbmcaddon.Addon('plugin.video.redux').getSetting("sqlite_db_folder")
-            if(database_folder.endswith("\\") or database_folder.endswith("/")):
-                pass
-            else:
-                database_folder = database_folder+"/"
-            database_folder = xbmc.translatePath(database_folder)
-            print(database_folder)
-            database_path = "{0}shows.db".format(database_folder)
-        else:
-            database_path = "{0}shows.db".format(__profile__)
+    if(not os.path.isfile(pickle_file)):
+        if(os.path.isfile(packaged_pickle_file)):
+            shutil.copyfile(packaged_pickle_file, pickle_file)
 
-        db_data["data"]["path"] = database_path
-    else:
-        raise ValueError("Invalid database provider (show)")
-
-    use_same_db = xbmcaddon.Addon('plugin.video.redux').getSetting("user_use_same_db")
-    if(use_same_db == "true"):
-        user_db_data = db_data
-        user_db_format = db_format
-    else:
-        if(user_db_format == "mysql"):
-            user_db_data["data"]["host"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_hostname")
-            user_db_data["data"]["port"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_port")
-            user_db_data["data"]["username"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_username")
-            user_db_data["data"]["password"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_password")
-            user_db_data["data"]["db"] = xbmcaddon.Addon('plugin.video.redux').getSetting("user_mysql_db")
-        elif(user_db_format == "sqlite"):
-            user_database_folder = xbmcaddon.Addon('plugin.video.redux').getSetting("user_sqlite_db_folder")
-            if(user_database_folder.endswith("\\") or user_database_folder.endswith("/")):
-                pass
-            else:
-                user_database_folder = user_database_folder+"/"
-            user_database_folder = xbmc.translatePath(user_database_folder)
-            user_database_path = "{0}shows.db".format(user_database_folder)
-            user_db_data["data"]["path"] = user_database_path
-        else:
-            raise ValueError("Invalid database provider (user)")
+    [db_data, user_db_data] = xbmc_util.get_db_data()
 
     params = dict(parse_qsl(sys.argv[2][1:]))
     if 'action' in params and params['action'] == "test_connection":
@@ -1576,9 +1755,10 @@ if __name__ == '__main__':
             return_values = test_connection(user_db_data, "user")
         else:
             raise ValueError("Invalid connection parameter")
-        connection_valid = return_values[0]
-        connection_error = return_values[1]
-        connection_string = return_values[2]
+
+        connection_valid = return_values["connection_valid"]
+        connection_error = return_values["connection_error"]
+        connection_string = return_values["connection_string"]
 
         if(connection_valid):
             dialog = xbmcgui.Dialog()
@@ -1589,7 +1769,7 @@ if __name__ == '__main__':
 
         xbmc.executebuiltin('Addon.OpenSettings(plugin.video.redux)')
     else:
-        if(check_for_database(db_data, user_db_data, pickle_path)):
+        if(check_for_database(db_data, user_db_data, pickle_file)):
             # Connect to Database
             db = BaseModel._meta.database
             init_database(db, db_data)

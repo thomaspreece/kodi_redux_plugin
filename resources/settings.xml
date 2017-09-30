@@ -38,4 +38,7 @@
   <setting type="sep"/>
   <setting label="Test Connection" type="action" action="RunPlugin(plugin://plugin.video.redux?action=test_connection&connection=user)" option="close"/>
 </category>
+<category label="Other">
+  <setting id="show_parental_controls" type="bool" label="Show Parental Controls in Plugin" default="false"/>
+</category>
 </settings>
