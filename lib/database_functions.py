@@ -1,8 +1,10 @@
 # models.py
+
+import os
 from lib import peewee
 
 from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, ShowSubGenre, GenreToSubGenre, LastUpdate, Actor, ShowActor, Year, DBVersion ,BaseModel
-from lib.user_database_schema import UserFavouriteShow, UserReduxResolve, UserReduxFile, UserLastUpdate, UserDBVersion, UserBaseModel
+from lib.user_database_schema import UserFavouriteShow, UserWatchedStatus, UserReduxResolve, UserReduxFile, UserLastUpdate, UserDBVersion, UserBaseModel
 
 try:
     from cStringIO import StringIO
@@ -22,7 +24,7 @@ def get_showdb_version():
     return 1
 
 def get_userdb_version():
-    return 2
+    return 3
 
 def init_database(db_proxy, db_data):
     if(db_data["db_format"] == "mysql"):
@@ -63,6 +65,7 @@ def create_database(create_show_tables = True, create_user_tables = True, show_v
         db.connect()
         tables = [
             [UserFavouriteShow,"UserFavouriteShow"],
+            [UserWatchedStatus, "UserWatchedStatus"],
             [UserReduxResolve, "UserReduxResolve"],
             [UserReduxFile, "UserReduxFile"],
             [UserLastUpdate, "UserLastUpdate"],
@@ -107,11 +110,129 @@ def create_database(create_show_tables = True, create_user_tables = True, show_v
                 print("{0} table already exists!".format(table[1]))
             else:
                 print("{0} table created".format(table[1]))
-        DBVersion.delete().where(True).execute()    
+        DBVersion.delete().where(True).execute()
         DBVersion(
             version = show_version
         ).save()
         db.close()
+
+def test_connection(db_data, db_content):
+    connection_valid = False
+    connection_error = ""
+    connection_string = ""
+    preexisting_db = False
+    update_db = False
+    if(db_data["db_format"] == "sqlite"):
+        connection_string = "Sqlite (File): {0}".format(db_data["data"]["path"])
+        if(os.path.isfile(db_data["data"]["path"])):
+            try:
+                if(db_content == "show"):
+                    db = BaseModel._meta.database
+                elif(db_content == "user"):
+                    db = UserBaseModel._meta.database
+                else:
+                    raise ValueError("Invalid db_content")
+                init_database(db, db_data)
+                db.connect()
+            except Exception,e:
+                print("Connection Fail")
+                print(str(e))
+                connection_error = "File is not an sqlite database"
+            else:
+                connection_valid = True
+                preexisting_db = True
+                try:
+                    if(db_content == "show"):
+                        db_version_rows = DBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < get_showdb_version()):
+                                update_db = True
+                    elif(db_content == "user"):
+                        db_version_rows = UserDBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < get_userdb_version()):
+                                update_db = True
+                except Exception,e:
+                    print("DBVersion Fail")
+                    print(str(e))
+                    update_db = True
+                db.close()
+        else:
+            try:
+                with open(db_data["data"]["path"], 'a'):
+                    os.utime(db_data["data"]["path"], None)
+                os.remove(db_data["data"]["path"])
+            except Exception, e:
+                connection_error = "Couldn't write to file."
+            else:
+                connection_valid = True
+
+    elif(db_data["db_format"] == "mysql"):
+        if(len(db_data["data"]["password"]) > 0):
+            password = "(with password)"
+        else:
+            password = "(no password)"
+        connection_string = "mySQL: {0}@{1}:{2}/{3} {4}".format(
+            db_data["data"]["username"],
+            db_data["data"]["host"],
+            db_data["data"]["port"],
+            db_data["data"]["db"],
+            password
+        )
+        try:
+            if(db_content == "show"):
+                db = BaseModel._meta.database
+            elif(db_content == "user"):
+                db = UserBaseModel._meta.database
+            else:
+                raise ValueError("Invalid db_content")
+            init_database(db, db_data)
+            db.connect()
+        except Exception,e:
+            print("Connection Fail")
+            print(str(e))
+            connection_error = "Couldn't connect to db"
+        else:
+            connection_valid = True
+            try:
+                if(db_content == "show"):
+                    lastupdaterows = LastUpdate.select()
+                elif(db_content == "user"):
+                    lastupdaterows = UserLastUpdate.select()
+                else:
+                    raise ValueError("Invalid db_content")
+                if(len(lastupdaterows) > 0):
+                    preexisting_db = True
+            except Exception,e:
+                print("Last Update Fail")
+                print(str(e))
+                pass
+            else:
+                try:
+                    if(db_content == "show"):
+                        db_version_rows = DBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < get_showdb_version()):
+                                update_db = True
+                    elif(db_content == "user"):
+                        db_version_rows = UserDBVersion.select()
+                        if(len(db_version_rows) > 0):
+                            if(db_version_rows[0].version < get_userdb_version()):
+                                update_db = True
+                except Exception,e:
+                    print("DBVersion Fail")
+                    print(str(e))
+                    update_db = True
+            db.close()
+
+    return {
+        "connection_valid": connection_valid,
+        "connection_error": connection_error,
+        "connection_string": connection_string,
+        "preexisting_db": preexisting_db,
+        "update_db": update_db
+    }
+
 
 def populate_user_database():
     db = UserBaseModel._meta.database
@@ -365,6 +486,48 @@ def convert_shows_to_json(show_records):
             "premier": show_record.premier
         }
     return shows
+
+def update_show_watched_status(show_name):
+    showrows = Show.select().where(Show.title == show_name).get()
+    show = convert_show_to_json(showrows)
+    watchedrows = UserWatchedStatus.select().where(UserWatchedStatus.show == show_name)
+
+    show_in_progress = False
+    show_is_watched = True
+    for season in show['season']:
+        season_in_progress = False
+        season_is_watched = True
+        for episode in show['season'][season]['episode']:
+            found = False
+            for watched_status in watchedrows:
+                if(
+                    watched_status.status_is_episode == True and
+                    watched_status.episode == episode and
+                    watched_status.season == season
+                ):
+                    if(watched_status.in_progress == True):
+                        season_in_progress = True
+                        show_in_progress = True
+                    if(watched_status.watched == False):
+                        season_is_watched = False
+                        show_is_watched = False
+                    found = True
+                    break
+            if(found == False):
+                show_is_watched = False
+                
+        UserWatchedStatus.update(in_progress = season_in_progress, watched = season_is_watched).where(
+            UserWatchedStatus.show == show_name
+        ).where(
+            UserWatchedStatus.season == season
+        ).where(
+            UserWatchedStatus.status_is_season == True
+        ).execute()
+    UserWatchedStatus.update(in_progress = show_in_progress, watched = show_is_watched).where(
+        UserWatchedStatus.show == show_name
+    ).where(
+        UserWatchedStatus.status_is_show == True
+    ).execute()
 
 if __name__ == "__main__":
     set_db_type("sqlite")

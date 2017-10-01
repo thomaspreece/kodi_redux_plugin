@@ -14,8 +14,8 @@ import shutil
 import datetime
 
 from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, DBVersion, BaseModel
-from lib.user_database_schema import UserFavouriteShow, UserReduxResolve, UserLastUpdate, UserDBVersion, UserBaseModel
-from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database, get_userdb_version, get_showdb_version
+from lib.user_database_schema import UserFavouriteShow, UserWatchedStatus, UserReduxResolve, UserReduxFile, UserLastUpdate, UserDBVersion, UserBaseModel
+from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database, test_connection, get_userdb_version, get_showdb_version
 
 import json
 
@@ -54,6 +54,7 @@ DOWNLOAD_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/
 UPDATE_SCRIPT  = xbmc.translatePath('special://home/addons/plugin.video.redux/scrape-update.py')
 
 MAINMENU = [
+    {'name':'In Progress' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Favourites' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Recently Added' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'View By Category' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
@@ -467,6 +468,37 @@ def list_shows_all():
         # Add our item to the Kodi virtual folder listing.
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
 
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def list_in_progress_shows():
+    in_progress_shows_list = get_in_progress_shows_list()
+
+    shows_records = Show.select().where(Show.title << in_progress_shows_list).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        favourite = True
+        list_item = set_show_metadata(shows[show], list_item, favourite)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     # Add a sort method for the virtual folder items (alphabetically, ignore articles)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
     xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
@@ -956,8 +988,8 @@ def set_episode_metadata(show,season,episode,list_item):
     url = get_url(action='play_episode', show=show["title"].encode("utf-8"), season=season, episode=episode, format=True)
 
     list_item.addContextMenuItems([
-        ("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')'),
-        ("Play (ask me for format)","xbmc.RunPlugin({0})".format(url))
+        ("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')
+        # ("Play (ask me for format)","xbmc.RunPlugin({0})".format(url))
     ])
 
     list_item.setInfo('video', {'title': title})
@@ -1321,6 +1353,20 @@ def get_favourite_shows_list():
         favourite_show_list.append(favourite_show_result.show)
     return favourite_show_list
 
+def get_in_progress_shows_list():
+    in_progress_show_list = []
+    in_progress_show_results = UserWatchedStatus.select().where(UserWatchedStatus.status_is_show == True).where(UserWatchedStatus.in_progress == True)
+    for in_progress_show_result in in_progress_show_results:
+        in_progress_show_list.append(in_progress_show_result.show)
+    return in_progress_show_list
+
+def get_watched_shows_list():
+    watched_show_list = []
+    watched_show_results = UserWatchedStatus.select().where(UserWatchedStatus.status_is_show == True).where(UserWatchedStatus.watched == True)
+    for watched_show_result in watched_show_results:
+        watched_show_list.append(watched_show_result.show)
+    return watched_show_list
+
 def mark_favourite(show_name, unfavourite = False):
     favourite_show_results = UserFavouriteShow.select().where(UserFavouriteShow.show == show_name)
     if(unfavourite == False):
@@ -1355,17 +1401,18 @@ def check_parental_pin():
         elif(pin_status == False):
             xbmcgui.Dialog().ok("Error","PIN incorrect")
             return
-    # list_item = xbmcgui.ListItem(label="Continue")
-    # list_item.setArt({'thumb': DEFAULT_ICON,
-    #                   'icon': DEFAULT_ICON,
-    #                   'fanart': DEFAULT_FANART})
-    # list_item.setInfo('video', {'title': "Continue", 'genre': "Parental Controls"})
+    list_item = xbmcgui.ListItem(label="Click to Continue")
+    list_item.setArt({'thumb': DEFAULT_ICON,
+                      'icon': DEFAULT_ICON,
+                      'fanart': DEFAULT_FANART})
+    list_item.setInfo('video', {'title': "Click to Continue", 'genre': "Parental Controls"})
     url = get_url(action='list_menu')
-    # is_folder = True
-    # xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
-    # xbmcplugin.endOfDirectory(_handle)
+    is_folder = True
+    xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    xbmcplugin.endOfDirectory(_handle)
 
-    xbmc.executebuiltin("xbmc.ReplaceWindow(Videos, {0})".format(url))
+    # print("------> Replacing Videos with xbmc.ReplaceWindow(Videos, {0})".format(url))
+    # xbmc.executebuiltin("xbmc.ReplaceWindow(Videos, {0})".format(url))
 
 def check_pin(parental_file, pin):
     try:
@@ -1430,7 +1477,7 @@ def router(params):
             list_menu()
         elif params['action'] == "parental":
             if(params['selection'] != "Add PIN" and params['selection'] != "Remove PIN" and params['selection'] != "Change PIN"):
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
             pin_control(params['selection'])
         elif params['action'] == 'favourite_mark':
             if(params['unfavourite'] == "True"):
@@ -1438,7 +1485,9 @@ def router(params):
             else:
                 mark_favourite(params['show'], False)
         elif params['action'] == 'menu':
-            if params['selection'] == 'Favourites':
+            if params['selection'] == 'In Progress':
+                list_in_progress_shows()
+            elif params['selection'] == 'Favourites':
                 list_favourite_shows()
             elif params['selection'] == 'Recently Added':
                 list_recently_added_shows_categories()
@@ -1454,7 +1503,7 @@ def router(params):
             elif params['selection'] == "Parental Controls":
                 list_parental_controls()
             else:
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
 
         elif params['action'] == 'search':
             if params['selection'] == 'Search (By Name)':
@@ -1464,7 +1513,7 @@ def router(params):
             elif params['selection'] == 'Advanced Search':
                 advanced_search_for_shows()
             else:
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == 'search_list':
             if params['search_type'] == 'Search (By Name)':
                 search_for_shows_list(params['search_term'])
@@ -1475,7 +1524,7 @@ def router(params):
                     params['search_term'] = ""
                 advanced_search_for_shows_list(params['search_term'], params['channel_selections'], params['genre_selections'], params['year_selections'])
             else:
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == 'listing':
             # Display the list of videos in a provided category.
             if params['category'] == 'Channels':
@@ -1489,7 +1538,7 @@ def router(params):
             elif params['category'] == "Years":
                 list_years()
             else:
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == "show_subgenre_of_genre_listing":
             list_subgenres_of_genre(params['genre'])
         elif params['action'] == 'show_listing':
@@ -1506,7 +1555,7 @@ def router(params):
             elif 'year' in params:
                 list_shows_by_year(params['year'])
             else:
-                raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == 'season_listing':
             list_seasons(params['show'])
         elif params['action'] == 'episode_listing':
@@ -1521,7 +1570,7 @@ def router(params):
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
             # e.g. typos in action names.
-            raise ValueError('Invalid paramstring: {0}!'.format(paramstring))
+            raise ValueError('Invalid paramstring: {0}!'.format(params))
     else:
         # If the plugin is called from Kodi UI without any parameters,
         # display the list of video categories
@@ -1549,122 +1598,6 @@ def load_shows_json(location = None):
         print("Finished Loading Shows (Fail)")
         return None
 
-def test_connection(db_data, db_content):
-    connection_valid = False
-    connection_error = ""
-    connection_string = ""
-    preexisting_db = False
-    update_db = False
-    if(db_data["db_format"] == "sqlite"):
-        connection_string = "Sqlite (File): {0}".format(db_data["data"]["path"])
-        if(os.path.isfile(db_data["data"]["path"])):
-            try:
-                if(db_content == "show"):
-                    db = BaseModel._meta.database
-                elif(db_content == "user"):
-                    db = UserBaseModel._meta.database
-                else:
-                    raise ValueError("Invalid db_content")
-                init_database(db, db_data)
-                db.connect()
-            except Exception,e:
-                print("Connection Fail")
-                print(str(e))
-                connection_error = "File is not an sqlite database"
-            else:
-                connection_valid = True
-                preexisting_db = True
-                try:
-                    if(db_content == "show"):
-                        db_version_rows = DBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < __ShowDBVersion__):
-                                update_db = True
-                    elif(db_content == "user"):
-                        db_version_rows = UserDBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < __ShowDBVersion__):
-                                update_db = True
-                except Exception,e:
-                    print("DBVersion Fail")
-                    print(str(e))
-                    update_db = True
-                db.close()
-        else:
-            try:
-                with open(db_data["data"]["path"], 'a'):
-                    os.utime(db_data["data"]["path"], None)
-                os.remove(db_data["data"]["path"])
-            except Exception, e:
-                connection_error = "Couldn't write to file."
-            else:
-                connection_valid = True
-
-    elif(db_data["db_format"] == "mysql"):
-        if(len(db_data["data"]["password"]) > 0):
-            password = "(with password)"
-        else:
-            password = "(no password)"
-        connection_string = "mySQL: {0}@{1}:{2}/{3} {4}".format(
-            db_data["data"]["username"],
-            db_data["data"]["host"],
-            db_data["data"]["port"],
-            db_data["data"]["db"],
-            password
-        )
-        try:
-            if(db_content == "show"):
-                db = BaseModel._meta.database
-            elif(db_content == "user"):
-                db = UserBaseModel._meta.database
-            else:
-                raise ValueError("Invalid db_content")
-            init_database(db, db_data)
-            db.connect()
-        except Exception,e:
-            print("Connection Fail")
-            print(str(e))
-            connection_error = "Couldn't connect to db"
-        else:
-            connection_valid = True
-            try:
-                if(db_content == "show"):
-                    lastupdaterows = LastUpdate.select()
-                elif(db_content == "user"):
-                    lastupdaterows = UserLastUpdate.select()
-                else:
-                    raise ValueError("Invalid db_content")
-                if(len(lastupdaterows) > 0):
-                    preexisting_db = True
-            except Exception,e:
-                print("Last Update Fail")
-                print(str(e))
-                pass
-            else:
-                try:
-                    if(db_content == "show"):
-                        db_version_rows = DBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < __ShowDBVersion__):
-                                update_db = True
-                    elif(db_content == "user"):
-                        db_version_rows = UserDBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < __UserDBVersion__):
-                                update_db = True
-                except Exception,e:
-                    print("DBVersion Fail")
-                    print(str(e))
-                    update_db = True
-            db.close()
-
-    return {
-        "connection_valid": connection_valid,
-        "connection_error": connection_error,
-        "connection_string": connection_string,
-        "preexisting_db": preexisting_db,
-        "update_db": update_db
-    }
 
 def check_for_database(db_data, user_db_data, pickle_path):
     show_connection = test_connection(db_data, "show")

@@ -10,6 +10,16 @@ class UserBaseModel(peewee.Model):
 class UserFavouriteShow(UserBaseModel):
     show = peewee.TextField()
 
+class UserWatchedStatus(UserBaseModel):
+    show = peewee.TextField(null=True)
+    season = peewee.TextField(null=True)
+    episode = peewee.TextField(null=True)
+    status_is_show = peewee.BooleanField(default=False)
+    status_is_season = peewee.BooleanField(default=False)
+    status_is_episode = peewee.BooleanField(default=False)
+    in_progress = peewee.BooleanField(default=False)
+    watched = peewee.BooleanField(default=False)
+
 class UserReduxResolve(UserBaseModel):
     show = peewee.TextField()
     season = peewee.TextField()
