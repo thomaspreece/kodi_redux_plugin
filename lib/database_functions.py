@@ -140,22 +140,33 @@ def test_connection(db_data, db_content):
                 connection_error = "File is not an sqlite database"
             else:
                 connection_valid = True
-                preexisting_db = True
                 try:
                     if(db_content == "show"):
-                        db_version_rows = DBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < get_showdb_version()):
-                                update_db = True
+                        lastupdaterows = LastUpdate.select()
                     elif(db_content == "user"):
-                        db_version_rows = UserDBVersion.select()
-                        if(len(db_version_rows) > 0):
-                            if(db_version_rows[0].version < get_userdb_version()):
-                                update_db = True
+                        lastupdaterows = UserLastUpdate.select()
+                    else:
+                        raise ValueError("Invalid db_content")
+                    if(len(lastupdaterows) > 0):
+                        preexisting_db = True
                 except Exception,e:
-                    print("DBVersion Fail")
-                    print(str(e))
-                    update_db = True
+                    pass
+                else:
+                    try:
+                        if(db_content == "show"):
+                            db_version_rows = DBVersion.select()
+                            if(len(db_version_rows) > 0):
+                                if(db_version_rows[0].version < get_showdb_version()):
+                                    update_db = True
+                        elif(db_content == "user"):
+                            db_version_rows = UserDBVersion.select()
+                            if(len(db_version_rows) > 0):
+                                if(db_version_rows[0].version < get_userdb_version()):
+                                    update_db = True
+                    except Exception,e:
+                        print("DBVersion Fail")
+                        print(str(e))
+                        update_db = True
                 db.close()
         else:
             try:
@@ -515,7 +526,7 @@ def update_show_watched_status(show_name):
                     break
             if(found == False):
                 show_is_watched = False
-                
+
         UserWatchedStatus.update(in_progress = season_in_progress, watched = season_is_watched).where(
             UserWatchedStatus.show == show_name
         ).where(

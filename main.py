@@ -1627,7 +1627,7 @@ def check_for_database(db_data, user_db_data, pickle_path):
             pDialog.update(40,"Initialising Database... Done", "Populating Database...")
             populate_database(shows_obj, pDialog)
             pDialog.update(100,"Populating Database... Done", "", "")
-            return True
+            pDialog.close()
         else:
             dialog = xbmcgui.Dialog()
             dialog.ok('Loading Data', 'Could not find a pickled database of shows', "Expected: {0} to exist".format(pickle_path))
@@ -1639,7 +1639,7 @@ def check_for_database(db_data, user_db_data, pickle_path):
         init_database(db, db_data)
         create_database(True, False, __ShowDBVersion__, __UserDBVersion__)
         pDialog.update(100,"Updating Tables... Done", "", "")
-
+        pDialog.close()
     user_connection = test_connection(user_db_data, "user")
 
     if(user_connection["connection_valid"] == False):
@@ -1651,10 +1651,14 @@ def check_for_database(db_data, user_db_data, pickle_path):
     if(user_connection["preexisting_db"] == False):
         # Data not in database
         print("Creating User Table")
+        pDialog = xbmcgui.DialogProgress()
+        pDialog.create('Creating User Database', 'Initialising Database...')
         user_db = UserBaseModel._meta.database
         init_database(user_db, user_db_data)
         create_database(False, True, __ShowDBVersion__, __UserDBVersion__)
         populate_user_database()
+        pDialog.update(100, 'Initialising Database...Done')
+        pDialog.close()
     elif(user_connection["update_db"] == True):
         pDialog = xbmcgui.DialogProgress()
         pDialog.create('Updating User Database', 'Updating Tables...')
@@ -1662,7 +1666,7 @@ def check_for_database(db_data, user_db_data, pickle_path):
         init_database(db, db_data)
         create_database(False, True, __ShowDBVersion__, __UserDBVersion__)
         pDialog.update(100,"Updating Tables... Done", "", "")
-
+        pDialog.close()
     return True
 
 if __name__ == '__main__':
