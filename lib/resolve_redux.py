@@ -16,15 +16,29 @@ __profile__ = get_user_dir()
 def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
     episode_json = show_json["season"][season_num]["episode"][episode_num]
     broadcast_time = parser.parse(episode_json["start"])
-    minute_dela = timedelta(minutes=1)
+    minute_delta = timedelta(minutes=1)
+
+    search_string = show_json["title"]
+
+    MAX_LEN = 25
+
+    if(len(search_string) > MAX_LEN):
+        search_string_words = search_string.split(" ")
+        search_string = search_string_words[0]
+        for i in range(1,len(search_string_words)):
+            word = search_string_words[i]
+            if((len(search_string)+len(word)+1) > MAX_LEN):
+                break
+            else:
+                search_string = search_string + " " + word
+
 
     searchParams = {'token': redux_token,
-                    'q': show_json["title"],
+                    'q': search_string,
                     'titleonly': 1,
-                    'before': (broadcast_time + minute_dela).isoformat(),
-                    'after': (broadcast_time - minute_dela).isoformat(),
+                    'before': (broadcast_time + minute_delta).isoformat(),
+                    'after': (broadcast_time - minute_delta).isoformat(),
                     'limit': 50}
-    print(searchParams)
     searchApiUrl = "https://i.bbcredux.com/asset/search"
     searchResponse = requests.get(searchApiUrl, params=searchParams, stream=False)
     print(searchResponse.url)
@@ -32,7 +46,6 @@ def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
         searchJson = searchResponse.json()
         if ("results" in searchJson and "assets" in searchJson["results"]):
             if len(searchJson['results']['assets']) > 0:
-                print(searchJson['results']['assets'])
                 for i in range(len(searchJson['results']['assets'])):
                     channel_name = searchJson['results']['assets'][i]["channel"]["name"]
                     if(channel_name == "bbcone" or channel_name == "bbctwo" or channel_name == "bbcthree" or channel_name == "bbcfour"):
@@ -66,6 +79,7 @@ def resolve_episode_url(redux_token, disk_ref):
 
     assetKeyResponse = requests.get(getAssetKeyUrl,
                                     params=getAssetKeyParams)
+    print(assetKeyResponse.url)
     # if OK response
     if (assetKeyResponse.status_code == 200):
         assetKeyResponseJson = assetKeyResponse.json()
