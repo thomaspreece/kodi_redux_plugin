@@ -443,6 +443,7 @@ def list_shows_all():
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -458,7 +459,11 @@ def list_shows_all():
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -482,6 +487,9 @@ def list_in_progress_shows():
     shows_records = Show.select().where(Show.title << in_progress_shows_list).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
+    favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -489,8 +497,16 @@ def list_in_progress_shows():
         # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
-        favourite = True
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -513,6 +529,8 @@ def list_favourite_shows():
     shows_records = Show.select().where(Show.title << favourite_shows_list).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
 
+    watched_shows_list = get_watched_shows_list()
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -521,7 +539,11 @@ def list_favourite_shows():
         # Here we use the same image for all items for simplicity's sake.
         # In a real-life plugin you need to set each image accordingly.
         favourite = True
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -543,6 +565,8 @@ def list_shows_by_year(year):
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
+
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -554,7 +578,11 @@ def list_shows_by_year(year):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -577,6 +605,7 @@ def list_shows_by_genre(genre):
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
     # Iterate through shows
     for show in shows:
         # Create a list item with a text label and a thumbnail image.
@@ -588,7 +617,11 @@ def list_shows_by_genre(genre):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -609,6 +642,7 @@ def list_shows_by_subgenre(genre):
     shows_records = Show.select().join(ShowSubGenre).join(SubGenre).where(SubGenre.name == genre).order_by(Show.title)
     shows = convert_shows_to_json(shows_records)
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -621,7 +655,11 @@ def list_shows_by_subgenre(genre):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -644,6 +682,7 @@ def list_shows_by_genre_with_subgenre(genre, subgenre):
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -656,7 +695,11 @@ def list_shows_by_genre_with_subgenre(genre, subgenre):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -686,6 +729,7 @@ def list_recently_added_shows(recenttype):
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -694,7 +738,11 @@ def list_recently_added_shows(recenttype):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
         #list_item.setInfo('video', {'title': '(New Season) {0}'.format(shows[show]["title"].encode("utf-8"))})
 
         url = get_url(action='season_listing', show=show.encode("utf-8"))
@@ -723,6 +771,7 @@ def list_shows_by_channel(channel):
 
     shows = convert_shows_to_json(shows_records)
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -739,7 +788,11 @@ def list_shows_by_channel(channel):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -761,19 +814,29 @@ def list_seasons(show_name):
     show_record = Show.select().where(Show.title == show_name).get()
     show = convert_show_to_json(show_record)
 
+    watchedseasons = UserWatchedStatus.select().where(
+        UserWatchedStatus.show == show_name &
+        UserWatchedStatus.status_is_season == True
+    )
+
     listings = []
 
     if len(show['season']) == 1:
         list_episodes(show_name,next(iter(show['season'])))
         return
     for season in show['season']:
+        watched = False
+        for watchedseason in watchedseasons:
+            if(watchedseason.season == season):
+                watched = watchedseason.watched
+
         if(show['season'][season]["title"]):
             title = "{0} ({1})".format(show['season'][season]["title"].encode("utf-8"),season)
         else:
             title = "Untitled ({0})".format(season)
         list_item = xbmcgui.ListItem(label=title)
 
-        set_season_metadata(show,season,list_item)
+        set_season_metadata(show, season, list_item, watched)
 
         url = get_url(action='episode_listing', show=show_name, season=season)
         # is_folder = True means that this item opens a sub-list of lower level items.
@@ -792,8 +855,19 @@ def list_episodes(show_name, season):
     show_record = Show.select().where(Show.title == show_name).get()
     show = convert_show_to_json(show_record)
 
+    watchedepisodes = UserWatchedStatus.select().where(
+        UserWatchedStatus.show == show_name &
+        UserWatchedStatus.season == season &
+        UserWatchedStatus.status_is_episode == True
+    )
+
     listings = []
     for episode in show['season'][season]['episode']:
+        watched = False
+        for watchedepisode in watchedepisodes:
+            if(watchedepisode.episode == episode):
+                watched = watchedepisode.watched
+
         if(show['season'][season]['episode'][episode]["title"]):
             title = "E{0} {1}".format(episode,show['season'][season]['episode'][episode]["title"].encode("utf-8"))
         else:
@@ -801,7 +875,7 @@ def list_episodes(show_name, season):
         list_item = xbmcgui.ListItem(label=title)
         list_item.setProperty('IsPlayable', 'true')
 
-        list_item = set_episode_metadata(show,season,episode,list_item)
+        list_item = set_episode_metadata(show,season,episode,list_item,watched)
         url = get_url(action='play_episode', show=show_name.encode("utf-8"), season=season, episode=episode)
         # is_folder = True means that this item opens a sub-list of lower level items.
         is_folder = False
@@ -911,7 +985,7 @@ def play_episode(show, season, episode, format_override):
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
-def set_season_metadata(show,season,list_item):
+def set_season_metadata(show, season, list_item, watched = False):
     show_season = show["season"][season]
     if(show_season["title"]):
         title = "{0} ({1})".format(show_season["title"].encode("utf-8"),season)
@@ -932,7 +1006,16 @@ def set_season_metadata(show,season,list_item):
     if len(show["banner"]) > 0:
         list_item.setArt({'banner': show["banner"][0]})
 
-    list_item.addContextMenuItems([("Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')])
+    contextMenuItems = [
+        ("Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')
+    ]
+
+    if (watched):
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+    else:
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+
+    list_item.addContextMenuItems(contextMenuItems)
 
     list_item.setInfo('video', {'title': title})
     if(len(show["genres"]) > 0):
@@ -960,7 +1043,7 @@ def set_season_metadata(show,season,list_item):
 
     return list_item
 
-def set_episode_metadata(show,season,episode,list_item):
+def set_episode_metadata(show,season,episode,list_item, watched = False):
     show_episode = show["season"][season]["episode"][episode]
     if(show_episode["title"]):
         title = "E{0} - {1}".format(episode,show_episode["title"].encode("utf-8"))
@@ -987,10 +1070,16 @@ def set_episode_metadata(show,season,episode,list_item):
 
     url = get_url(action='play_episode', show=show["title"].encode("utf-8"), season=season, episode=episode, format=True)
 
-    list_item.addContextMenuItems([
+    contextMenuItems = [
         ("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')
-        # ("Play (ask me for format)","xbmc.RunPlugin({0})".format(url))
-    ])
+    ]
+
+    if(watched):
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+    else:
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+
+    list_item.addContextMenuItems(contextMenuItems)
 
     list_item.setInfo('video', {'title': title})
     if(len(show["genres"]) > 0):
@@ -1024,7 +1113,7 @@ def set_episode_metadata(show,season,episode,list_item):
     return list_item
 
 
-def set_show_metadata(show, list_item, favourite = False):
+def set_show_metadata(show, list_item, favourite = False, watched = False):
     if len(show["poster"]) > 0:
         list_item.setArt({'thumb': show["poster"][0], 'icon': show["poster"][0]})
         list_item.setArt({'poster': show["poster"][0]})
@@ -1045,6 +1134,11 @@ def set_show_metadata(show, list_item, favourite = False):
         contextMenuItems.append(("Remove From Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
     else:
         contextMenuItems.append(("Add To Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
+
+    if(watched):
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
+    else:
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1202,6 +1296,7 @@ def advanced_search_for_shows_list(search_term, channel_selections, genre_select
     shows = convert_shows_to_json(shows_records)
 
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -1217,7 +1312,12 @@ def advanced_search_for_shows_list(search_term, channel_selections, genre_select
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1261,6 +1361,7 @@ def search_for_shows_vague_list(search_term):
         )
     shows = convert_shows_to_json(shows_records)
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -1276,7 +1377,12 @@ def search_for_shows_vague_list(search_term):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1313,6 +1419,7 @@ def search_for_shows_list(search_term):
         shows_records = Show.select().where(Show.title.contains(search_term))
     shows = convert_shows_to_json(shows_records)
     favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
 
     # Iterate through shows
     for show in shows:
@@ -1328,7 +1435,12 @@ def search_for_shows_list(search_term):
             favourite = True
         else:
             favourite = False
-        list_item = set_show_metadata(shows[show], list_item, favourite)
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
 
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
@@ -1366,6 +1478,9 @@ def get_watched_shows_list():
     for watched_show_result in watched_show_results:
         watched_show_list.append(watched_show_result.show)
     return watched_show_list
+
+def mark_watched(show_name, watched = False, season = None, episode = None):
+    xbmc.executebuiltin("Container.Refresh")
 
 def mark_favourite(show_name, unfavourite = False):
     favourite_show_results = UserFavouriteShow.select().where(UserFavouriteShow.show == show_name)
@@ -1479,6 +1594,18 @@ def router(params):
             if(params['selection'] != "Add PIN" and params['selection'] != "Remove PIN" and params['selection'] != "Change PIN"):
                 raise ValueError('Invalid paramstring: {0}!'.format(params))
             pin_control(params['selection'])
+        elif params['action'] == 'watched_mark':
+            if(params['watched'] == "True"):
+                watched = True
+            else:
+                watched = False
+
+            if "episode" in params:
+                mark_watched(params['show'], watched, params["season"], params["episode"])
+            elif "season" in params:
+                mark_watched(params['show'], watched, params["season"], None)
+            else:
+                mark_watched(params['show'], watched, None, None)
         elif params['action'] == 'favourite_mark':
             if(params['unfavourite'] == "True"):
                 mark_favourite(params['show'], True)

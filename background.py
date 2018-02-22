@@ -101,7 +101,7 @@ if __name__ == '__main__':
                                     ).save()
 
                                 watchedrows =  watchedshowrows.where(
-                                    UserWatchedStatus.status_is_season == True
+                                    UserWatchedStatus.status_is_show == True
                                 )
 
                                 if(len(watchedrows) == 0):
