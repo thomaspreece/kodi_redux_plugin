@@ -15,7 +15,7 @@ import datetime
 
 from lib.database_schema import Show, Genre, RecentShows, ShowGenre, SubGenre, GenreToSubGenre, ShowSubGenre, Actor, ShowActor, Year, LastUpdate, DBVersion, BaseModel
 from lib.user_database_schema import UserFavouriteShow, UserWatchedStatus, UserReduxResolve, UserReduxFile, UserLastUpdate, UserDBVersion, UserBaseModel
-from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database, test_connection, get_userdb_version, get_showdb_version
+from lib.database_functions import convert_shows_to_json, convert_show_to_json, populate_database, populate_user_database, create_database, init_database, test_connection, get_userdb_version, get_showdb_version, update_show_watched_status
 
 import json
 
@@ -815,8 +815,8 @@ def list_seasons(show_name):
     show = convert_show_to_json(show_record)
 
     watchedseasons = UserWatchedStatus.select().where(
-        UserWatchedStatus.show == show_name &
-        UserWatchedStatus.status_is_season == True
+        (UserWatchedStatus.show == show_name) &
+        (UserWatchedStatus.status_is_season == True)
     )
 
     listings = []
@@ -856,9 +856,9 @@ def list_episodes(show_name, season):
     show = convert_show_to_json(show_record)
 
     watchedepisodes = UserWatchedStatus.select().where(
-        UserWatchedStatus.show == show_name &
-        UserWatchedStatus.season == season &
-        UserWatchedStatus.status_is_episode == True
+        (UserWatchedStatus.show == show_name) &
+        (UserWatchedStatus.season == season) &
+        (UserWatchedStatus.status_is_episode == True)
     )
 
     listings = []
@@ -1011,9 +1011,9 @@ def set_season_metadata(show, season, list_item, watched = False):
     ]
 
     if (watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1036,7 +1036,13 @@ def set_season_metadata(show, season, list_item, watched = False):
     list_item.setInfo('video', {'premiered': show["premier"]})
     list_item.setInfo('video', {'year': show["year"]})
     list_item.setInfo('video', {'cast': show["actors"]})
-
+    if(watched):
+        list_item.setInfo('video', {'playcount': 1})
+        list_item.setInfo('video', {'overlay': 5}) # watched overlay
+    else:
+        list_item.setInfo('video', {'playcount': 0})
+        list_item.setInfo('video', {'overlay': 4}) # unwatched overlay
+        
     list_item.setInfo('video', {'season': season})
     list_item.setInfo('video', {'mediatype': "season"})
     list_item.setInfo('video', {'tvshowtitle': show["title"].encode("utf-8")})
@@ -1075,9 +1081,9 @@ def set_episode_metadata(show,season,episode,list_item, watched = False):
     ]
 
     if(watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1100,6 +1106,12 @@ def set_episode_metadata(show,season,episode,list_item, watched = False):
     list_item.setInfo('video', {'premiered': show["premier"]})
     list_item.setInfo('video', {'year': show["year"]})
     list_item.setInfo('video', {'cast': show["actors"]})
+    if(watched):
+        list_item.setInfo('video', {'playcount': 1})
+        list_item.setInfo('video', {'overlay': 5}) # watched overlay
+    else:
+        list_item.setInfo('video', {'playcount': 0})
+        list_item.setInfo('video', {'overlay': 4}) # unwatched overlay
 
     list_item.setInfo('video', {'season': season})
     list_item.setInfo('video', {'episode': episode})
@@ -1136,9 +1148,9 @@ def set_show_metadata(show, list_item, favourite = False, watched = False):
         contextMenuItems.append(("Add To Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
 
     if(watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1162,6 +1174,12 @@ def set_show_metadata(show, list_item, favourite = False, watched = False):
     list_item.setInfo('video', {'premiered': show["premier"]})
     list_item.setInfo('video', {'year': show["year"]})
     list_item.setInfo('video', {'cast': show["actors"]})
+    if(watched):
+        list_item.setInfo('video', {'playcount': 1})
+        list_item.setInfo('video', {'overlay': 5}) # watched overlay
+    else:
+        list_item.setInfo('video', {'playcount': 0})
+        list_item.setInfo('video', {'overlay': 4}) # unwatched overlay
     if(show["summary_short"]):
         list_item.setInfo('video', {'plotoutline': show["summary_short"].encode("utf-8")})
     elif(show["summary_medium"]):
@@ -1480,7 +1498,89 @@ def get_watched_shows_list():
     return watched_show_list
 
 def mark_watched(show_name, watched = False, season = None, episode = None):
+    show_record = Show.select().where(Show.title == show_name).get()
+    show = convert_show_to_json(show_record)
+
+    print(show_name, watched, season, episode)
+
+    if(episode != None):
+        mark_watched_episode(show_name, watched, season, episode)
+    elif(season != None):
+        mark_watched_season(show_name, watched, season)
+        for episode_key in show["season"][season]["episode"]:
+            mark_watched_episode(show_name, watched, season , episode_key)
+    else:
+        mark_watched_show(show_name, watched)
+        for season_key in show["season"]:
+            mark_watched_season(show_name, watched, season_key)
+            for episode_key in show["season"][season_key]["episode"]:
+                mark_watched_episode(show_name, watched, season_key , episode_key)
+                mark_watched_season(show_name, watched, season_key)
+    update_show_watched_status(show_name)
     xbmc.executebuiltin("Container.Refresh")
+
+def mark_watched_show(show_name, watched):
+    showrow = UserWatchedStatus.select().where(
+        (UserWatchedStatus.show == show_name) &
+        (UserWatchedStatus.status_is_show == True)
+    )
+    if(len(showrow) == 0):
+        UserWatchedStatus(
+            show = show_name,
+            status_is_show = True,
+            in_progress = False,
+            watched = watched
+        ).save()
+    else:
+        UserWatchedStatus.update(watched = watched, in_progress = False).where(
+            (UserWatchedStatus.show == show_name) &
+            (UserWatchedStatus.status_is_show == True)
+        ).execute()
+
+def mark_watched_season(show_name, watched, season):
+    seasonrow = UserWatchedStatus.select().where(
+        (UserWatchedStatus.show == show_name) &
+        (UserWatchedStatus.season == season) &
+        (UserWatchedStatus.status_is_season == True)
+    )
+    if(len(seasonrow) == 0):
+        UserWatchedStatus(
+            show = show_name,
+            season = season,
+            status_is_season = True,
+            in_progress = False,
+            watched = watched
+        ).save()
+    else:
+        UserWatchedStatus.update(watched = watched, in_progress = False).where(
+            (UserWatchedStatus.show == show_name) &
+            (UserWatchedStatus.season == season) &
+            (UserWatchedStatus.status_is_season == True)
+        ).execute()
+
+def mark_watched_episode(show_name, watched, season , episode):
+    episoderow = UserWatchedStatus.select().where(
+        (UserWatchedStatus.show == show_name) &
+        (UserWatchedStatus.season == season) &
+        (UserWatchedStatus.episode == episode) &
+        (UserWatchedStatus.status_is_episode == True)
+    )
+    if(len(episoderow) == 0):
+        UserWatchedStatus(
+            show = show_name,
+            season = season,
+            episode = episode,
+            status_is_episode = True,
+            in_progress = False,
+            watched = watched
+        ).save()
+    else:
+        UserWatchedStatus.update(watched = watched, in_progress = False).where(
+            (UserWatchedStatus.show == show_name) &
+            (UserWatchedStatus.season == season) &
+            (UserWatchedStatus.episode == episode) &
+            (UserWatchedStatus.status_is_episode == True)
+        ).execute()
 
 def mark_favourite(show_name, unfavourite = False):
     favourite_show_results = UserFavouriteShow.select().where(UserFavouriteShow.show == show_name)
