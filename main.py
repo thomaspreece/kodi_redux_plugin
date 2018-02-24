@@ -1007,13 +1007,13 @@ def set_season_metadata(show, season, list_item, watched = False):
         list_item.setArt({'banner': show["banner"][0]})
 
     contextMenuItems = [
-        ("Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')
+        ("(Redux) Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')
     ]
 
     if (watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+        contextMenuItems.append(("(Redux) Mark Unwatched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
+        contextMenuItems.append(("(Redux) Mark Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season)))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1042,7 +1042,7 @@ def set_season_metadata(show, season, list_item, watched = False):
     else:
         list_item.setInfo('video', {'playcount': 0})
         list_item.setInfo('video', {'overlay': 4}) # unwatched overlay
-        
+
     list_item.setInfo('video', {'season': season})
     list_item.setInfo('video', {'mediatype': "season"})
     list_item.setInfo('video', {'tvshowtitle': show["title"].encode("utf-8")})
@@ -1077,13 +1077,13 @@ def set_episode_metadata(show,season,episode,list_item, watched = False):
     url = get_url(action='play_episode', show=show["title"].encode("utf-8"), season=season, episode=episode, format=True)
 
     contextMenuItems = [
-        ("Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')
+        ("(Redux) Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')
     ]
 
     if(watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+        contextMenuItems.append(("(Redux) Mark Unwatched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
+        contextMenuItems.append(("(Redux) Mark Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True&season=%s&episode=%s)' % (sys.argv[0], show["title"].encode("utf-8"), season, episode)))
 
     list_item.addContextMenuItems(contextMenuItems)
 
@@ -1141,16 +1141,16 @@ def set_show_metadata(show, list_item, favourite = False, watched = False):
         list_item.setArt({'banner': show["banner"][0]})
 
     contextMenuItems = []
-    contextMenuItems.append(("Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')'))
+    contextMenuItems.append(("(Redux) Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')'))
     if(favourite):
-        contextMenuItems.append(("Remove From Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("(Redux) Unfavourite", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
     else:
-        contextMenuItems.append(("Add To Redux Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("(Redux) Add To Favourites", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
 
     if(watched):
-        contextMenuItems.append(("Remove From Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("(Redux) Mark Unwatched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=False)' % (sys.argv[0], show["title"].encode("utf-8"))))
     else:
-        contextMenuItems.append(("Add To Redux Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
+        contextMenuItems.append(("(Redux) Mark Watched", 'XBMC.RunPlugin(%s?action=watched_mark&show=%s&watched=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
 
     list_item.addContextMenuItems(contextMenuItems)
 
