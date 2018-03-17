@@ -46,17 +46,17 @@ def clear_database(clear_show_tables = False, clear_user_tables = False):
     if(clear_show_tables):
         db = BaseModel._meta.database
         db.connect()
-        Show.delete_instance()
-        Genre.delete_instance()
-        RecentShows.delete_instance()
-        ShowGenre.delete_instance()
-        ShowGenre.delete_instance()
-        ShowSubGenre.delete_instance()
-        GenreToSubGenre.delete_instance()
-        Actor.delete_instance()
-        ShowActor.delete_instance()
-        Year.delete_instance()
-        LastUpdate.delete_instance()
+        Show.delete().where(True).execute()
+        Genre.delete().where(True).execute()
+        RecentShows.delete().where(True).execute()
+        ShowGenre.delete().where(True).execute()
+        ShowGenre.delete().where(True).execute()
+        ShowSubGenre.delete().where(True).execute()
+        GenreToSubGenre.delete().where(True).execute()
+        Actor.delete().where(True).execute()
+        ShowActor.delete().where(True).execute()
+        Year.delete().where(True).execute()
+        LastUpdate.delete().where(True).execute()
         db.close()
 
 def create_database(create_show_tables = True, create_user_tables = True, show_version = 1, user_version = 1):

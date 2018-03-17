@@ -6,6 +6,12 @@ from time import sleep
 from tmdb3 import set_key, set_locale, searchMovie
 import json
 
+try:
+    xbmc_libraries_loaded = True
+    import xbmcaddon
+except:
+    xbmc_libraries_loaded = False
+
 import datetime
 
 CALLS = 60

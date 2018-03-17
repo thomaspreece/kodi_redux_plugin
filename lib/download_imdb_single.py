@@ -39,7 +39,7 @@ def download_files(download_list):
                         a = util.cleanString(util.checkStr(imdb_show["title"]))
                         b = util.cleanString(util.checkStr(search))
                         if(a == b):
-                            show = imdb.get_title_by_id(imdb_show["imdb_id"])
+                            show = imdb.get_title(imdb_show["imdb_id"])
                             break
 
                 if (len(search_result) > 0) and show != None:

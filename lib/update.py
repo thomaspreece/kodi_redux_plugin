@@ -1,6 +1,6 @@
 import os
 
-from datetime import date
+from datetime import datetime
 from dateutil import parser
 
 import sys
@@ -17,7 +17,7 @@ import download_imdb_single
 import download_lists
 import parseSchedule
 from database_schema import BaseModel, LastUpdate
-from database_functions import populate_database, create_database
+from database_functions import populate_database, get_userdb_version, get_showdb_version, init_database, clear_database, create_database, test_connection
 
 try:
     xbmc_libraries_loaded = True
@@ -26,7 +26,13 @@ try:
 except:
     xbmc_libraries_loaded = False
 
+__ShowDBVersion__ = get_showdb_version()
+__UserDBVersion__ = get_userdb_version()
+
 def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_to_interpreter = False):
+    todays_date = datetime.now()
+    todays_date_string = todays_date.strftime("%Y-%m-%d")
+
     if(xbmc_libraries_loaded == False and xbmc == True):
         raise ValueError("Could not load XBMC Libraries")
 
@@ -101,7 +107,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("")
         print("Updating Schedules")
 
-    parseSchedule.convert_html_schedules()
+    parseSchedule.convert_html_schedules(save_dir+"/")
 
     # ========== Parse JSON Schedules =======
     if(xbmc):
@@ -205,18 +211,19 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("")
         print("Creating IMDB Download List")
 
-    # ========= Download Shows Data from IMDB & Merge =========
-    download_list_5 = download_lists.get_imdb_show_download_list(shows["shows"])
-
-    if(xbmc):
-        pDialog.update(85,"Creating IMDB Download List...Done","Downloading IMDB...")
-        if (pDialog.iscanceled()): return
-    else:
-        print("")
-        print("Downloading IMDB")
-
-    if (len(download_list_5) != 0):
-        download_imdb_single.download_files(download_list_5)
+    # # DISABLED as API broken
+    # # ========= Download Shows Data from IMDB & Merge =========
+    # download_list_5 = download_lists.get_imdb_show_download_list(shows["shows"])
+    #
+    # if(xbmc):
+    #     pDialog.update(85,"Creating IMDB Download List...Done","Downloading IMDB...")
+    #     if (pDialog.iscanceled()): return
+    # else:
+    #     print("")
+    #     print("Downloading IMDB")
+    #
+    # if (len(download_list_5) != 0):
+    #     download_imdb_single.download_files(download_list_5)
 
     if(xbmc):
         pDialog.update(90,"Downloading IMDB...Done","Parsing IMDB...")
@@ -232,10 +239,12 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         if (pDialog.iscanceled()): return
     else:
         print("")
-        print("Saving Updated Shows")
+        print("Saving Updated Shows to {0}".format(pickle_file))
 
     # ========= Save Shows =========
-    parseSchedule.save_shows(shows,"{0}/shows.pickle".format(save_dir))
+    shows["parsed"] = todays_date_string
+
+    parseSchedule.save_shows(shows,pickle_file)
 
     if(xbmc):
         pDialog.update(100,"Saving Updated Shows...Done")
@@ -247,41 +256,48 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
             shutil.rmtree("{0}/show-scrape-bbc/".format(save_dir))
         pDialog.close()
 
-    db_file = "{0}/shows.db".format(save_dir)
+    if(xbmc):
+        [db_data, user_db_data] = xbmc_util.get_db_data()
+    else:
+        [db_data, user_db_data] = util.get_manual_db_data()
 
-    if(os.path.isfile(db_file)):
-        try:
-            db = BaseModel._meta.database
-            db.init(db_file)
-            db.connect()
-            last_update_query = LastUpdate.select()
+    show_connection = test_connection(db_data, "show")
+    if(show_connection["connection_valid"] == False):
+        if(xbmc):
+            dialog = xbmcgui.Dialog()
+            dialog.ok('Connecting to Show DB Failed', show_connection["connection_error"], show_connection["connection_string"])
+            return
+        else:
+            print('Connecting to Show DB Failed', show_connection["connection_error"], show_connection["connection_string"])
+            raise ValueError("Could not connect to the DB")
 
-            last_update = last_update_query[0].date
-            # Close Database
-            db.close()
-            db_update_date = parser.parse(last_update)
-            json_update_date = parser.parse(shows["parsed"])
-        except:
-            print("")
-            print("Invalid DB File")
-            os.remove(db_file)
+    db = BaseModel._meta.database
+    init_database(db, db_data)
 
-    if(not os.path.isfile(db_file) or db_update_date < json_update_date):
+    if(show_connection["preexisting_db"] == False or show_connection["update_db"] == True):
+        print("Creating Shows Tables")
+        # Data not in Database
+        create_database(True, False, __ShowDBVersion__, __UserDBVersion__)
+
+    db.connect()
+    last_update_query = LastUpdate.select()
+    last_update = last_update_query[0].date
+    # Close Database
+    db.close()
+    db_update_date = parser.parse(last_update)
+    json_update_date = parser.parse(shows["parsed"])
+
+    if(db_update_date < json_update_date):
         if(xbmc):
             pDialog = xbmcgui.DialogProgress()
-            pDialog.create('Creating Database', 'Initialising Database...')
+            pDialog.create('Creating Database', 'Clearing Database...')
         else:
             print("")
-            print("Creating Database")
-
-        if(os.path.isfile(db_file)):
-            os.remove(db_file)
-        db = BaseModel._meta.database
-        db.init(db_file)
-        create_database()
+            print("Clearing Database")
+        clear_database(True, False)
 
         if(xbmc):
-            pDialog.update(40,"Initialising Database... Done", "Populating Database...")
+            pDialog.update(40,"Clearing Database... Done", "Populating Database...")
         else:
             print("")
             print("Populating Database")

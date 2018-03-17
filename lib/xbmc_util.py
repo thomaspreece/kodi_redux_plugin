@@ -2,6 +2,8 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 
+__profile__ = get_user_dir()
+
 def convert_format(vidformat):
     if(vidformat == "Original stream"):
         return "ts"

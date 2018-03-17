@@ -32,7 +32,6 @@ def resolve_episode_ref(redux_token, show_json, season_num, episode_num):
             else:
                 search_string = search_string + " " + word
 
-
     searchParams = {'token': redux_token,
                     'q': search_string,
                     'titleonly': 1,
