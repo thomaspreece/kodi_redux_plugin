@@ -18,10 +18,10 @@ COPY docker_resources/run_update.sh run_update.sh
 RUN chmod +x run_update.sh
 
 # Add crontab file in the cron directory
-ADD docker_resources/crontab /etc/cron.d/update-cron
+ADD docker_resources/crontab /etc/cron.d/updatecron
 
 # Give execution rights on the cron job
-RUN chmod 0644 /etc/cron.d/update-cron
+RUN chmod 0644 /etc/cron.d/updatecron
 
 # Create the log file to be able to run tail
 RUN touch /var/log/cron.log
