@@ -273,7 +273,7 @@ def get_shows(shows_obj, script_prefix=""):
                 continue
             k = k + 1
             if(k > 50):
-                k = 0
+                k = 1
                 sys.stdout.write('.')
                 sys.stdout.flush()
             if os.path.isfile(json_file):
