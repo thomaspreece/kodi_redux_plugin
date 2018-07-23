@@ -2,8 +2,6 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 
-__profile__ = get_user_dir()
-
 def convert_format(vidformat):
     if(vidformat == "Original stream"):
         return "ts"
@@ -81,3 +79,5 @@ def get_db_data():
             raise ValueError("Invalid database provider (user)")
 
     return [db_data, user_db_data]
+
+__profile__ = get_user_dir()
