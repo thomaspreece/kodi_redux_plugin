@@ -154,15 +154,15 @@ def get_bbc_programmes_schedule_download_list(redo=False, start_date = None, scr
             if os.path.isfile("{2}/{0}/{1}-bbcone.html".format(year,scrape_date,SCRAPE_FOLDER)) and not redo:
                 print(single_date.strftime("Skipped (BBCOne): %Y-%m-%d"))
             else:
-                download_list.append([SCRAPE_URL + "bbcone/programmes/schedules/london/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCOne): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl6p/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCOne): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbcone.html".format(year,scrape_date_prev,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbcone/programmes/schedules/london/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCOne): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl6p/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCOne): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbcone.html".format(year,scrape_date_next,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbcone/programmes/schedules/london/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCOne): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl6p/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbcone.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCOne): %Y-%m-%d")])
 
 
         if os.path.isfile("{2}/{0}/{1}-bbctwo.json".format(year,scrape_date,SCRAPE_FOLDER)) and not redo:
@@ -171,15 +171,15 @@ def get_bbc_programmes_schedule_download_list(redo=False, start_date = None, scr
             if os.path.isfile("{2}/{0}/{1}-bbctwo.html".format(year,scrape_date,SCRAPE_FOLDER)) and not redo:
                 print(single_date.strftime("Skipped (BBCTwo): %Y-%m-%d"))
             else:
-                download_list.append([SCRAPE_URL+"bbctwo/programmes/schedules/england/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCTwo): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL+"schedules/p00fzl97/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCTwo): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_prev,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbctwo/programmes/schedules/england/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCTwo): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl97/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCTwo): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_next,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbctwo/programmes/schedules/england/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCTwo): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl97/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbctwo.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCTwo): %Y-%m-%d")])
 
         if os.path.isfile("{2}/{0}/{1}-bbcthree.json".format(year,scrape_date,SCRAPE_FOLDER)) and not redo:
             print(single_date.strftime("Skipped (BBCThree): %Y-%m-%d"))
@@ -193,15 +193,15 @@ def get_bbc_programmes_schedule_download_list(redo=False, start_date = None, scr
             if os.path.isfile("{2}/{0}/{1}-bbcfour.html".format(year,scrape_date,SCRAPE_FOLDER)) and not redo:
                 print(single_date.strftime("Skipped (BBCFour): %Y-%m-%d"))
             else:
-                download_list.append([SCRAPE_URL+"bbcfour/programmes/schedules/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCFour): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL+"schedules/p00fzl6b/{0}".format(scrape_date_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date,SCRAPE_FOLDER), single_date.strftime("Saved (BBCFour): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_prev,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbcfour/programmes/schedules/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCFour): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl6b/{0}".format(scrape_date_prev_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_prev,SCRAPE_FOLDER), single_date_prev.strftime("Saved (BBCFour): %Y-%m-%d")])
             if os.path.isfile("{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_next,SCRAPE_FOLDER)) and not redo:
                 pass
             else:
-                download_list.append([SCRAPE_URL + "bbcfour/programmes/schedules/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCFour): %Y-%m-%d")])
+                download_list.append([SCRAPE_URL + "schedules/p00fzl6b/{0}".format(scrape_date_next_url_format), "{2}/{0}/{1}-bbcfour.html".format(year,scrape_date_next,SCRAPE_FOLDER), single_date_next.strftime("Saved (BBCFour): %Y-%m-%d")])
 
     return download_list
 
@@ -247,7 +247,7 @@ def get_schedule_items(start_date = None, script_prefix=""):
                     for link_ind in range(len(schedule_item_links)):
                         schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                         schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                        if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p") and len(schedule_item_pid) == 8):
+                        if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
                             if(not os.path.isfile("{0}/{1}.json".format(SAVE_FOLDER,schedule_item_pid))):
                                 schedule_item_pid_list.append([SCRAPE_URL+"programmes/{0}.json".format(schedule_item_pid), "{0}/{1}.json".format(SAVE_FOLDER,schedule_item_pid), "Saved: {0}".format(schedule_item_pid)])
                             pid_found = True

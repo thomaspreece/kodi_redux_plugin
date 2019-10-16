@@ -6,6 +6,7 @@ try:
 except:
    import pickle
 
+import json
 from pytvdbapi import api
 
 from datetime import timedelta, date
@@ -31,6 +32,7 @@ def save_shows(shows, location):
         if os.path.isfile(location):
             os.remove(location)
         pickle.dump( shows, open( location, "wb" ) )
+        json.dump( shows, open ( location+".json", "wb") )
     else:
         raise ValueError("No Shows Provided")
 
@@ -157,7 +159,7 @@ def convert_html_schedules(script_prefix=""):
                                 for link_ind in range(len(schedule_item_links)):
                                     schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                     schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                                    if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p") and len(schedule_item_pid) == 8):
+                                    if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
                                         schedule_item_list.append({
                                             "datetime": schedule_item_time,
                                             "pid": schedule_item_pid,
@@ -166,6 +168,7 @@ def convert_html_schedules(script_prefix=""):
                                         break
                                 if(pid_found == False):
                                     print(schedule_item)
+                                    print(schedule_item_links)
                                     for link_ind in range(len(schedule_item_links)):
                                         schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                         schedule_item_pid = schedule_item_pid.rsplit("#")[0]
@@ -183,7 +186,7 @@ def convert_html_schedules(script_prefix=""):
                             for link_ind in range(len(schedule_item_links)):
                                 schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                 schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                                if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p") and len(schedule_item_pid) == 8):
+                                if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
                                     schedule_item_list.append({
                                         "datetime": schedule_item_time,
                                         "pid": schedule_item_pid,
@@ -192,6 +195,7 @@ def convert_html_schedules(script_prefix=""):
                                     break
                             if(pid_found == False):
                                 print(schedule_item)
+                                print(schedule_item_links)
                                 for link_ind in range(len(schedule_item_links)):
                                     schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                     schedule_item_pid = schedule_item_pid.rsplit("#")[0]
