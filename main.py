@@ -83,6 +83,7 @@ CATEGORIES = [
     {'name':'Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Sub-Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Years' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+    {'name':'Type' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
     ]
 
 CHANNELS = [
@@ -301,6 +302,46 @@ def list_years():
         # Create a URL for a plugin recursive call.
         # Example: plugin://plugin.video.example/?action=listing&category=Animals
         url = get_url(action='show_listing', year=year)
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_TITLE)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
+
+def list_types():
+    all_types = ["Normal", "Miniseries"]
+    """
+    Create the list of video categories in the Kodi interface.
+    """
+    i = 0
+    # Iterate through categories
+    for type_record in all_types:
+        type = type_record
+        i += 1
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=type)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        #list_item.setArt({'thumb': CHANNELS[channel]['thumb'],
+        #                  'icon': CHANNELS[channel]['thumb']})
+        #                  'fanart': CHANNELS[channel]['thumb']})
+        list_item.setArt({'thumb': DEFAULT_ICON,
+                          'icon': DEFAULT_ICON,
+                          'fanart': DEFAULT_FANART})
+        # Set additional info for the list item.
+        # Here we use a category name for both properties for for simplicity's sake.
+        # setInfo allows to set various information for an item.
+        # For available properties see the following link:
+        # http://mirrors.xbmc.org/docs/python-docs/15.x-isengard/xbmcgui.html#ListItem-setInfo
+        list_item.setInfo('video', {'title': type})
+        list_item.setInfo('video', {'genre': type})
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='show_listing', type=type)
         # is_folder = True means that this item opens a sub-list of lower level items.
         is_folder = True
         # Add our item to the Kodi virtual folder listing.
@@ -600,6 +641,44 @@ def list_shows_by_year(year):
     # Finish creating a virtual folder.
     xbmcplugin.endOfDirectory(_handle)
 
+def list_shows_by_type(type):
+    shows_records = Show.select().where(Show.show_type == type).order_by(Show.title)
+    shows = convert_shows_to_json(shows_records)
+
+    favourite_shows_list = get_favourite_shows_list()
+    watched_shows_list = get_watched_shows_list()
+
+    # Iterate through shows
+    for show in shows:
+        # Create a list item with a text label and a thumbnail image.
+        list_item = xbmcgui.ListItem(label=show)
+        # Set graphics (thumbnail, fanart, banner, poster, landscape etc.) for the list item.
+        # Here we use the same image for all items for simplicity's sake.
+        # In a real-life plugin you need to set each image accordingly.
+        if(show in favourite_shows_list):
+            favourite = True
+        else:
+            favourite = False
+        if(show in watched_shows_list):
+            watched = True
+        else:
+            watched = False
+        list_item = set_show_metadata(shows[show], list_item, favourite, watched)
+
+        # Create a URL for a plugin recursive call.
+        # Example: plugin://plugin.video.example/?action=listing&category=Animals
+        url = get_url(action='season_listing', show=show.encode("utf-8"))
+        # is_folder = True means that this item opens a sub-list of lower level items.
+        is_folder = True
+        # Add our item to the Kodi virtual folder listing.
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    # Add a sort method for the virtual folder items (alphabetically, ignore articles)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_GENRE)
+    xbmcplugin.addSortMethod(_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+    # Finish creating a virtual folder.
+    xbmcplugin.endOfDirectory(_handle)
 
 def list_shows_by_genre(genre):
     shows_records = Show.select().join(ShowGenre).join(Genre).where(Genre.name == genre).order_by(Show.title)
@@ -1873,6 +1952,8 @@ def router(params):
                 list_subgenres()
             elif params['category'] == "Years":
                 list_years()
+            elif params['category'] == "Type":
+                list_types()
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == "show_subgenre_of_genre_listing":
@@ -1890,6 +1971,8 @@ def router(params):
                 list_shows_by_subgenre(params['subgenre'])
             elif 'year' in params:
                 list_shows_by_year(params['year'])
+            elif 'type' in params:
+                list_shows_by_type(params['type'])
             else:
                 raise ValueError('Invalid paramstring: {0}!'.format(params))
         elif params['action'] == 'season_listing':
