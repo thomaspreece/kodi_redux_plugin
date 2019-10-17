@@ -20,6 +20,7 @@ from lib.database_functions import convert_shows_to_json, convert_show_to_json, 
 import json
 
 import os
+import re
 try:
    import cPickle as pickle
 except:
@@ -904,6 +905,8 @@ def play_episode(show, season, episode, format_override):
     redux_token = redux_account.checkAndGetToken()
     print(redux_token)
     if(redux_token == ""):
+        dialog = xbmcgui.Dialog()
+        dialog.ok("No Redux Token")
         return
 
     redux_ref_rows = UserReduxResolve.select().where(
@@ -961,7 +964,7 @@ def play_episode(show, season, episode, format_override):
         else:
             url = urls[urls.keys()[play]]
     else:
-        requested_format_setting = xbmcplugin.getSetting(_handle,"format")
+        requested_format_setting = xbmcaddon.Addon('plugin.video.redux').getSetting("format")
         requested_format = xbmc_util.convert_format(requested_format_setting)
         if (requested_format in urls):
             url = urls[requested_format]
@@ -1007,7 +1010,7 @@ def set_season_metadata(show, season, list_item, watched = False):
         list_item.setArt({'banner': show["banner"][0]})
 
     contextMenuItems = [
-        ("(Redux) Download Season",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+')')
+        ("(Redux) Download Season",'XBMC.RunPlugin(%s?action=download&show=%s&season=%s)' % (sys.argv[0], show["title"], season))
     ]
 
     if (watched):
@@ -1077,7 +1080,7 @@ def set_episode_metadata(show,season,episode,list_item, watched = False):
     url = get_url(action='play_episode', show=show["title"].encode("utf-8"), season=season, episode=episode, format=True)
 
     contextMenuItems = [
-        ("(Redux) Download Episode",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+', '+season+', '+episode+')')
+        ("(Redux) Download Episode",'XBMC.RunPlugin(%s?action=download&show=%s&season=%s&episode=%s)' % (sys.argv[0], show["title"], season ,episode))
     ]
 
     if(watched):
@@ -1141,7 +1144,7 @@ def set_show_metadata(show, list_item, favourite = False, watched = False):
         list_item.setArt({'banner': show["banner"][0]})
 
     contextMenuItems = []
-    contextMenuItems.append(("(Redux) Download Show",'XBMC.RunScript('+DOWNLOAD_SCRIPT+', '+str(_handle)+", "+show["title"]+')'))
+    contextMenuItems.append(("(Redux) Download Show",'XBMC.RunPlugin(%s?action=download&show=%s)' % (sys.argv[0], show["title"])))
     if(favourite):
         contextMenuItems.append(("(Redux) Unfavourite", 'XBMC.RunPlugin(%s?action=favourite_mark&show=%s&unfavourite=True)' % (sys.argv[0], show["title"].encode("utf-8"))))
     else:
@@ -1673,6 +1676,112 @@ def pin_control(selection):
     else:
         save_pin(parental_file, new_pin)
 
+def generate_download_list(show_title, show_season, show_episode):
+    if (show_episode):
+        title = re.sub('[^a-zA-Z0-9]', '', show_title) + " - Season " + re.sub('[^a-zA-Z0-9]', '', show_season) + " - Episode" + re.sub('[^a-zA-Z0-9]', '', show_episode)
+    elif (show_season):
+        title = re.sub('[^a-zA-Z0-9]', '', show_title) + " - Season " + re.sub('[^a-zA-Z0-9]', '', show_season)
+    else:
+        title = re.sub('[^a-zA-Z0-9]', '', show_title)
+
+    pDialog = xbmcgui.DialogProgress()
+    pDialog.create('Generating Download List', 'Loading Shows...')
+
+    home_folder = os.path.expanduser("~")
+    desktop_folder = os.path.join(home_folder,"desktop")
+
+    save_file = os.path.join(desktop_folder,  title) + ".txt"
+
+    show_record = Show.select().where(Show.title == show_title).get()
+    show = convert_show_to_json(show_record)
+
+    show_seasons = show["season"]
+    total_episodes = 0
+    current_episode = 0
+    for season in sorted(show_seasons):
+        if(show_season != None and season != show_season):
+            continue
+        show_episodes = show_seasons[season]["episode"]
+        for episode in sorted(show_episodes):
+            if(show_episode != None and episode != show_episode):
+                continue
+            total_episodes += 1
+
+    pDialog.update(1,"Resolving Redux Urls...")
+
+    loginfile = '{0}/reduxLogin.txt'.format(__profile__)
+    redux_account = resolve_redux.ReduxAccount(loginfile)
+    redux_token = redux_account.checkAndGetToken()
+
+    requested_format_setting = xbmcaddon.Addon('plugin.video.redux').getSetting("format")
+    requested_format = xbmc_util.convert_format(requested_format_setting)
+
+    if(redux_token == ""):
+        pDialog.close()
+        xbmcgui.Dialog().ok("No Redux Token")
+        return
+
+    if(os.path.isfile(save_file)):
+        pDialog.close()
+        xbmcgui.Dialog().ok("Generating Download List", "File Already Exists: ",save_file)
+        return
+
+    failed_downloads = []
+
+    f = open(save_file, 'w')
+    f.write('# Download for '+show_title+'\n')  # python will convert \n to os.linesep
+
+    for season in sorted(show_seasons):
+        if(show_season != None and season != show_season):
+            continue
+        show_episodes = show_seasons[season]["episode"]
+        for episode in sorted(show_episodes):
+            if(show_episode != None and episode != show_episode):
+                continue
+            pDialog.update( int((100*current_episode)/total_episodes) ,"Resolving Redux Urls...","Resolved {0}/{1}".format(current_episode,total_episodes),"Resolving Disk Reference")
+            [error,ref] = resolve_redux.resolve_episode_ref(redux_token, show, season, episode)
+            url = None
+            defaultedTo = None
+            if (error > -1):
+                pDialog.update( int((100*current_episode)/total_episodes) ,"Resolving Redux Urls...","Resolved {0}/{1}".format(current_episode,total_episodes),"Resolving URL")
+                urls = resolve_redux.resolve_episode_url(redux_token, ref)
+                if urls == None:
+                    failed_downloads.append("S{0}E{1}".format(season,episode))
+                else:
+                    if (requested_format in urls):
+                        url = urls[requested_format]
+                    elif (len(urls) > 1):
+                        for key in urls:
+                            if (key != "ts"):
+                                url = urls[key]
+                                defaultedTo = key
+                                break
+                    else:
+                        url = urls["ts"]
+                        defaultedTo = "ts"
+            else:
+                failed_downloads.append("S{0}E{1}".format(season,episode))
+
+            if url != None:
+                if(defaultedTo != None):
+                    f.write("# Download S{0}E{1} (Defaulted to {2} Format)".format(season,episode,defaultedTo)+"\n")
+                else:
+                    f.write("# Download S{0}E{1}".format(season,episode)+"\n")
+
+                url = url.replace("media.","{2}_S{0}E{1}.".format(season,episode,re.sub("[^a-zA-Z0-9]","",show_title)))
+
+                f.write("{0}\n".format(url))
+            else:
+                f.write("# Download S{0}E{1}".format(season,episode)+"\n")
+                f.write("# Unavailable\n".format(url))
+
+            current_episode += 1
+            pDialog.update( int((100*current_episode)/total_episodes) ,"Resolving Redux Urls...","Resolved {0}/{1}".format(current_episode,total_episodes),"")
+    f.close()
+    pDialog.update(100,"Resolving Redux Urls... Done","","")
+    pDialog.close()
+    xbmcgui.Dialog().ok("Generating Download List", "Download List Saved To: ",save_file)
+
 def router(params):
     """
     Router function that calls other functions
@@ -1793,6 +1902,21 @@ def router(params):
                 play_episode(params['show'],params['season'],params["episode"],params["format"])
             else:
                 play_episode(params['show'],params['season'],params["episode"],None)
+        elif params['action'] == 'download':
+            if("show" in params):
+                show_title = params["show"]
+            else:
+                raise ValueError('Invalid paramstring: {0}!'.format(params))
+
+            show_season = None
+            show_episode = None
+
+            if("season" in params):
+                show_season = params["season"]
+                if("episode" in params):
+                    show_episode = params["episode"]
+
+            generate_download_list(show_title, show_season, show_episode)
         else:
             # If the provided paramstring does not contain a supported action
             # we raise an exception. This helps to catch coding errors,
