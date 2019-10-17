@@ -331,6 +331,7 @@ def get_shows(shows_obj, script_prefix=""):
                     show_title = None
                     season_number = None
                     season_title = None
+                    show_type = "Normal"
 
                     if(not ("programme" in json_episode)):
                         # Episode is a one off (likely a film)
@@ -373,6 +374,11 @@ def get_shows(shows_obj, script_prefix=""):
                             season_number = util.checkStr(json_season["position"])
                             season_title = util.checkStr(json_season["title"])
                             season_pid = util.checkStr(json_season["pid"])
+                            season_child_count = json_season["expected_child_count"]
+
+                            if(season_child_count and season_child_count > 1 and season_child_count < 6):
+                                show_type = "Miniseries"
+
                             if("image" in json_season):
                                 season_image = BASE_FANART_URL+util.checkStr(json_season["image"]["pid"])
                             else:
@@ -409,10 +415,13 @@ def get_shows(shows_obj, script_prefix=""):
                             "poster": [],
                             "banner": [],
                             "rating": None,
-                            "rating_count": None
+                            "rating_count": None,
+                            "show_type": show_type
                         }
                         shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_show")
                         show_added_to_recents = True
+                    else:
+                        shows[show_title]["show_type"] = show_type
                     if(not (season_number in shows[show_title]["season"])):
                         shows[show_title]["season"][season_number] = {
                             "number": season_number,
