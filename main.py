@@ -82,7 +82,7 @@ CATEGORIES = [
     {'name':'Channels' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Sub-Genres' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
-    {'name':'Years' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
+    {'name':'Years' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART},
     {'name':'Type' ,'thumb': DEFAULT_ICON, 'fanart': DEFAULT_FANART}
     ]
 
