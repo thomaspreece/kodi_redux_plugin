@@ -1229,8 +1229,8 @@ def advanced_search_for_shows():
     genre_list = []
     for genre_record in genre_record_list:
         genre_list.append(genre_record.name)
-    for genre_record in sub_genre_record_list:
-        genre_list.append(genre_record.name)
+    for subgenre_record in sub_genre_record_list:
+        genre_list.append(subgenre_record.name)
     genre_list.sort()
     genre_list = ["All"] + genre_list
 
@@ -1251,7 +1251,7 @@ def advanced_search_for_shows():
     if(year_selections == -1):
         return
 
-    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Advanced Search&search_term=%s&channel_selections=%s&genre_selections=%s&year_selections=%s)' % (sys.argv[0], search_term, channel_selections, genre_selections, year_selections))
+    advanced_search_for_shows_list(search_term, channel_selections, genre_selections, year_selections)
 
 def advanced_search_for_shows_list(search_term, channel_selections, genre_selections, year_selections):
     channel_selections = int(channel_selections)
@@ -1361,7 +1361,7 @@ def search_for_shows_vague():
     search_term = dialog.input('Enter search term', type=xbmcgui.INPUT_ALPHANUM)
     if search_term == '':
         return
-    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Search (By Name, Desc, Actors)&search_term=%s)' % (sys.argv[0], search_term))
+    search_for_shows_vague_list(search_term)
 
 def search_for_shows_vague_list(search_term):
     regex = False
@@ -1427,7 +1427,7 @@ def search_for_shows():
     if search_term == '':
         return
 
-    xbmc.executebuiltin('XBMC.Container.Update(%s?action=search_list&search_type=Search (By Name)&search_term=%s)' % (sys.argv[0], search_term))
+    search_for_shows_list(search_term)
 
 def search_for_shows_list(search_term):
     regex = False
