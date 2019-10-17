@@ -257,7 +257,7 @@ def add_show_to_resents(recents, show_title, recent_type, max_recents = 50):
         "type": recent_type
     })
     if(len(recents) > max_recents):
-        difference = max_recents - len(recents)
+        difference = len(recents) - max_recents
         recents = recents[difference:(len(recents)-1)]
     return recents
 
