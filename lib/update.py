@@ -183,7 +183,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("Creating MovieDB Download List")
 
     # ========= Download Shows Data from themovieDB & Merge =========
-    download_list_4 = download_lists.get_moviedb_show_download_list(shows["shows"])
+    download_list_4 = download_lists.get_moviedb_show_download_list(shows["shows"], False, save_dir+"/")
 
     if(xbmc):
         pDialog.update(70,"Creating MovieDB Download List...Done","Downloading MovieDB...")
@@ -202,7 +202,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("")
         print("Parsing MovieDB")
 
-    shows["shows"] = parseSchedule.merge_moviedb_files(shows["shows"])
+    shows["shows"] = parseSchedule.merge_moviedb_files(shows["shows"], save_dir+"/")
 
     if(xbmc):
         pDialog.update(80,"Parsing MovieDB...Done","Creating IMDB Download List...")
@@ -232,7 +232,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("")
         print("Parsing IMDB")
 
-    shows["shows"] = parseSchedule.merge_imdb_files(shows["shows"])
+    shows["shows"] = parseSchedule.merge_imdb_files(shows["shows"], save_dir+"/")
 
     if(xbmc):
         pDialog.update(95,"Parsing IMDB...Done","Saving Updated Shows...")
