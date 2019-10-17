@@ -28,11 +28,16 @@ def load_shows(location):
         raise ValueError("Could not find {0}".format(location))
 
 def save_shows(shows, location):
+    json_location = location+".json"
     if(shows):
+        pickle.dump( shows, open( location+"_TMP", "wb" ) )
+        json.dump( shows, open ( json_location+"_TMP", "wb") )
         if os.path.isfile(location):
             os.remove(location)
-        pickle.dump( shows, open( location, "wb" ) )
-        json.dump( shows, open ( location+".json", "wb") )
+        os.rename(location+"_TMP", location)
+        if os.path.isfile(json_location):
+            os.remove(json_location)
+        os.rename(json_location+"_TMP", json_location)
     else:
         raise ValueError("No Shows Provided")
 
