@@ -7,6 +7,7 @@
 
 </category>
 <category label="API Keys">
+  <setting label="Below only required if you wish to update shows list" type="lsep"/>
   <setting id="tvdb_api_key" type="text" label="TheTVDB.com API Key" default="" />
   <setting id="moviedb_api_key" type="text" label="theMovieDB.org API Key" default="" />
 </category>
@@ -37,6 +38,12 @@
   <setting id="user_mysql_db" type="text" label="Database Name (Note: DB should be set to UTF-8)" default="mydatabase" visible="eq(-6,1)+eq(-7,false)"/>
   <setting type="sep"/>
   <setting label="Test Connection" type="action" action="RunPlugin(plugin://plugin.video.redux?action=test_connection&connection=user)" option="close"/>
+</category>
+<category label="Download">
+  <setting label="To use you must have uGet installed and available on your PATH." type="lsep"/>
+  <setting id="tvshow_download_location" type="folder" label="TV Show Download Location (NTF and SMB shares are not valid locations)" source="auto" option="writeable" value=""/>
+  <setting id="movie_download_location" type="folder" label="Movie Download Location (NTF and SMB shares are not valid locations)" source="auto" option="writeable" value=""/>
+  <setting id="save_episode_stream" type="bool" label="Save episode streams you watch to disk automatically?" default="false" enable="False"/>
 </category>
 <category label="Other">
   <setting id="show_parental_controls" type="bool" label="Show Parental Controls in Plugin" default="false"/>

@@ -470,6 +470,11 @@ def convert_show_to_json(show_record):
         "actors": show_record.actors_string.split("/"),
         "year": show_record.year,
         "premier": show_record.premier,
+        "bbc1": show_record.bbc1,
+        "bbc2": show_record.bbc2,
+        "bbc3": show_record.bbc3,
+        "bbc4": show_record.bbc4,
+        "film": show_record.film,
         "season": pickle.load(StringIO(show_record.season))
     }
     return show
