@@ -314,7 +314,7 @@ def get_shows(shows_obj, script_prefix=""):
                         raise ValueError("Invalid Type")
 
                     if("image" in json_episode):
-                        episode_image = BASE_FANART_URL+util.checkStr(json_episode["image"]["pid"])
+                        episode_image = BASE_FANART_URL+util.checkStr(json_episode["image"]["pid"]+".jpg")
                     else:
                         episode_image = None
                     # if(episode_repeat):
@@ -326,7 +326,17 @@ def get_shows(shows_obj, script_prefix=""):
                     episode_pid = util.checkStr(json_episode["pid"])
                     episode_number = util.checkStr(json_episode["position"])
                     episode_title = util.checkStr(json_episode["title"])
-                    episode_synopsis = util.checkStr(json_episode["short_synopsis"])
+                    episode_short_synopsis = util.checkStr(json_episode["short_synopsis"])
+                    episode_medium_synopsis = util.checkStr(json_episode["medium_synopsis"])
+                    episode_long_synopsis = util.checkStr(json_episode["long_synopsis"])
+                    episode_synopsis = ""
+
+                    if(episode_long_synopsis):
+                        episode_synopsis = episode_long_synopsis
+                    elif(episode_medium_synopsis):
+                        episode_synopsis = episode_medium_synopsis
+                    elif(episode_short_synopsis):
+                        episode_synopsis = episode_short_synopsis
 
                     show_title = None
                     season_number = None
@@ -357,7 +367,7 @@ def get_shows(shows_obj, script_prefix=""):
                             show_title = util.checkStr(json_brand["title"])
                             show_pid = util.checkStr(json_brand["pid"])
                             if("image" in json_brand):
-                                show_image = BASE_FANART_URL+util.checkStr(json_brand["image"]["pid"])
+                                show_image = BASE_FANART_URL+util.checkStr(json_brand["image"]["pid"])+".jpg"
                             else:
                                 show_image = None
                         elif(json_programme["type"] == "series"):
@@ -380,7 +390,7 @@ def get_shows(shows_obj, script_prefix=""):
                                 show_type = "Miniseries"
 
                             if("image" in json_season):
-                                season_image = BASE_FANART_URL+util.checkStr(json_season["image"]["pid"])
+                                season_image = BASE_FANART_URL+util.checkStr(json_season["image"]["pid"])+".jpg"
                             else:
                                 season_image = None
                             if(season_number == None):
@@ -440,6 +450,9 @@ def get_shows(shows_obj, script_prefix=""):
                                 "pid": episode_pid,
                                 "title": episode_title,
                                 "synopsis": episode_synopsis,
+                                "summary_short": episode_short_synopsis,
+                                "summary_medium": episode_medium_synopsis,
+                                "summary_long": episode_long_synopsis,
                                 "image": episode_image,
                                 "start": None,
                                 "end": None,
@@ -471,6 +484,9 @@ def get_shows(shows_obj, script_prefix=""):
                             "pid": episode_pid,
                             "title": episode_title,
                             "synopsis": episode_synopsis,
+                            "summary_short": episode_short_synopsis,
+                            "summary_medium": episode_medium_synopsis,
+                            "summary_long": episode_long_synopsis,
                             "image": episode_image,
                             "start": episode_start,
                             "end": episode_end,
@@ -731,10 +747,13 @@ def merge_tvdb_files(shows, script_prefix=""):
                 if(a != b):
                     tvdb_show = {}
 
-            if("Actors" in tvdb_show):
+            if("IMDB_ID" in tvdb_show and not util.emptyStr(tvdb_show["IMDB_ID"])):
+                show["imdb_id"] = tvdb_show["IMDB_ID"]
+
+            if("Actors" in tvdb_show and len(tvdb_show["Actors"]) > 0 and not util.emptyStr(tvdb_show["Actors"][0]):
                 show["actors"].extend(tvdb_show["Actors"])
 
-            if("Rating" in tvdb_show):
+            if("Rating" in tvdb_show and not util.emptyStr(tvdb_show["Rating"])):
                 show["rating"] = tvdb_show["Rating"]
                 show["rating_count"] = tvdb_show["RatingCount"]
             else:

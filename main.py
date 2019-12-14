@@ -1010,11 +1010,17 @@ def play_episode(show, season, episode, format_override):
             xbmcgui.Dialog().ok('Playing Episode', "Download path doesn't exist.", " Please setup tvshow_download_location and movie_download_location correctly in Plugin Settings")
             return
 
-        download_folder = os.path.join(
-            download_path,
-            removeInvalidFilesystemChars(show["title"]),
-            removeInvalidFilesystemChars(show['season'][season]["title"])
-        )
+        if(show['season'][season]["title"]):
+            download_folder = os.path.join(
+                download_path,
+                removeInvalidFilesystemChars(show["title"]),
+                removeInvalidFilesystemChars(show['season'][season]["title"])
+            )
+        else:
+            download_folder = os.path.join(
+                download_path,
+                removeInvalidFilesystemChars(show["title"])
+            )
         try:
             mkdir_p(download_folder)
         except:
@@ -1948,18 +1954,24 @@ def download(download_type ,show_title, show_season, show_episode):
                     f.write("# Unavailable\n".format(url))
             elif(download_type == "uget"):
                 if url != None:
-                    download_folder = os.path.join(
-                        download_path,
-                        show["title"],
-                        show['season'][season]["title"]
-                    )
+                    if(show['season'][season]["title"]):
+                        download_folder = os.path.join(
+                            download_path,
+                            removeInvalidFilesystemChars(show["title"]),
+                            removeInvalidFilesystemChars(show['season'][season]["title"])
+                        )
+                    else:
+                        download_folder = os.path.join(
+                            download_path,
+                            removeInvalidFilesystemChars(show["title"])
+                        )
                     try:
                         mkdir_p(download_folder)
                     except:
                         xbmcgui.Dialog().ok('Generating Download List', "Could not create path: {0}".format(download_folder))
                         return
 
-                    download_filename = "S{0}E{1}-{2}.mp4".format(season,episode,show['season'][season]['episode'][episode]["title"])
+                    download_filename = "S{0}E{1}-{2}.mp4".format(season,episode,removeInvalidFilesystemChars(show['season'][season]['episode'][episode]["title"]))
                     download_filepath = os.path.join(download_folder, download_filename)
                     if(os.path.isfile(download_filepath)):
                         failed_downloads.append("S{0}E{1}  - file exists".format(season,episode))
