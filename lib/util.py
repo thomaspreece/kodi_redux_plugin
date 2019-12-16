@@ -21,6 +21,12 @@ def mkdir_p(path):
 def get_millisecs():
     return int(round(time.time() * 1000))
 
+def validBBCPid(str):
+    # n3ct712k
+    if len(str) == 8 and str[0].isalpha():
+        return True
+    return False
+
 def cleanString(s):
     s = s.lower()
     s = s.replace("&","and")

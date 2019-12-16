@@ -242,17 +242,20 @@ def get_schedule_items(start_date = None, script_prefix=""):
                     schedule_item_time = schedule_item_time_html.get("content")
                     schedule_item_links = schedule_item.findAll("a")
                     if len(schedule_item_links) == 0:
+                        print(html_file)
+                        print(schedule_item)
                         raise ValueError("Invalid Link")
                     pid_found = False
                     for link_ind in range(len(schedule_item_links)):
                         schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                         schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                        if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
+                        if(util.validBBCPid(schedule_item_pid)):
                             if(not os.path.isfile("{0}/{1}.json".format(SAVE_FOLDER,schedule_item_pid))):
                                 schedule_item_pid_list.append([SCRAPE_URL+"programmes/{0}.json".format(schedule_item_pid), "{0}/{1}.json".format(SAVE_FOLDER,schedule_item_pid), "Saved: {0}".format(schedule_item_pid)])
                             pid_found = True
                             break
                     if(pid_found == False):
+                        print(html_file)
                         print(schedule_item)
                         raise ValueError("Invalid PID!")
 

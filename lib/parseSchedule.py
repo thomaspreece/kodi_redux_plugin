@@ -130,10 +130,10 @@ def convert_html_schedules(script_prefix=""):
                 print(html_file_date+"-"+html_file_service)
 
                 previous_html_file_date = (html_file_datetime - timedelta(days=1)).strftime("%Y-%m-%d")
-                previous_html_file = html_file_path+"/"+previous_html_file_date+"-"+html_file_service+".html"
+                previous_html_file = html_file_path.rsplit('/', 1)[0]+"/"+previous_html_file_date[:4]+"/"+previous_html_file_date+"-"+html_file_service+".html"
 
                 next_html_file_date = (html_file_datetime + timedelta(days=1)).strftime("%Y-%m-%d")
-                next_html_file = html_file_path+"/"+next_html_file_date+"-"+html_file_service+".html"
+                next_html_file = html_file_path.rsplit('/', 1)[0]+"/"+next_html_file_date[:4]+"/"+next_html_file_date+"-"+html_file_service+".html"
                 # if(not os.path.isfile(previous_html_file)):
                 #     previous_html_file = previous_html_file[0:-5]+".old_html"
                 if(os.path.isfile(previous_html_file) and os.path.isfile(next_html_file)):
@@ -164,7 +164,7 @@ def convert_html_schedules(script_prefix=""):
                                 for link_ind in range(len(schedule_item_links)):
                                     schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                     schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                                    if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
+                                    if(util.validBBCPid(schedule_item_pid)):
                                         schedule_item_list.append({
                                             "datetime": schedule_item_time,
                                             "pid": schedule_item_pid,
@@ -191,7 +191,7 @@ def convert_html_schedules(script_prefix=""):
                             for link_ind in range(len(schedule_item_links)):
                                 schedule_item_pid = schedule_item_links[link_ind].get("href").rsplit('/')[-1]
                                 schedule_item_pid = schedule_item_pid.rsplit("#")[0]
-                                if((schedule_item_pid[0] == "b" or schedule_item_pid[0] == "p" or schedule_item_pid[0] == "m") and len(schedule_item_pid) == 8):
+                                if(util.validBBCPid(schedule_item_pid)):
                                     schedule_item_list.append({
                                         "datetime": schedule_item_time,
                                         "pid": schedule_item_pid,
@@ -230,6 +230,10 @@ def convert_html_schedules(script_prefix=""):
                             json.dump(complete_schedule, outfile)
                         renameFiles.append(html_file)
                 else:
+                    if(os.path.isfile(previous_html_file)):
+                        print("Next: ", next_html_file)
+                    if(os.path.isfile(next_html_file)):
+                        print("Previous: ", previous_html_file)
                     print("No previous and/or next file")
 
     # for rfile in renameFiles:
