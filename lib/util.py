@@ -34,10 +34,10 @@ def cleanString(s):
     return re.sub("  "," ",s)
 
 def removeInvalidFilesystemChars(s):
-    if(isinstance(s, str)):
-        s = re.sub("[^a-zA-Z0-9 -'&]","",s)
-        s = re.sub("  "," ",s)
-    return s
+    retS = s
+    retS = re.sub("[^a-zA-Z0-9 -'&]","",retS)
+    retS = re.sub("  "," ",retS)
+    return retS
 
 def checkStr(s):
     if(s == None):
