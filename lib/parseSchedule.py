@@ -754,7 +754,7 @@ def merge_tvdb_files(shows, script_prefix=""):
             if("IMDB_ID" in tvdb_show and not util.emptyStr(tvdb_show["IMDB_ID"])):
                 show["imdb_id"] = tvdb_show["IMDB_ID"]
 
-            if("Actors" in tvdb_show and len(tvdb_show["Actors"]) > 0 and not util.emptyStr(tvdb_show["Actors"][0]):
+            if("Actors" in tvdb_show and len(tvdb_show["Actors"]) > 0 and not util.emptyStr(tvdb_show["Actors"][0])):
                 show["actors"].extend(tvdb_show["Actors"])
 
             if("Rating" in tvdb_show and not util.emptyStr(tvdb_show["Rating"])):
