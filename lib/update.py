@@ -50,12 +50,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
             shows = parseSchedule.load_shows(pickle_file)
             print("Parsing: {0}".format(shows["parsed"]))
         else:
-            if(xbmc):
-                dialog = xbmcgui.Dialog()
-                dialog.ok(90,"Error","Pickle file not found")
-                return
-            else:
-                raise ValueError("Invalid pickle_file location")
+            print("No pickle file found. Will Start Fresh.")
     if(xbmc):
         pDialog.update(5,"Loading Shows... Done","Creating Schedule Download List...")
         if (pDialog.iscanceled()): return

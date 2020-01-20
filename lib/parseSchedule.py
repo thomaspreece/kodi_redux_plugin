@@ -345,7 +345,7 @@ def get_shows(shows_obj, script_prefix=""):
                     show_title = None
                     season_number = None
                     season_title = None
-                    show_type = "Normal"
+                    miniseries = False
 
                     if(not ("programme" in json_episode)):
                         # Episode is a one off (likely a film)
@@ -391,7 +391,7 @@ def get_shows(shows_obj, script_prefix=""):
                             season_child_count = json_season["expected_child_count"]
 
                             if(season_child_count and season_child_count > 1 and season_child_count < 6):
-                                show_type = "Miniseries"
+                                miniseries = True
 
                             if("image" in json_season):
                                 season_image = BASE_FANART_URL+util.checkStr(json_season["image"]["pid"])+".jpg"
@@ -430,12 +430,10 @@ def get_shows(shows_obj, script_prefix=""):
                             "banner": [],
                             "rating": None,
                             "rating_count": None,
-                            "show_type": show_type
+                            "show_type": "Normal"
                         }
                         shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_show")
                         show_added_to_recents = True
-                    else:
-                        shows[show_title]["show_type"] = show_type
                     if(not (season_number in shows[show_title]["season"])):
                         shows[show_title]["season"][season_number] = {
                             "number": season_number,
@@ -446,6 +444,11 @@ def get_shows(shows_obj, script_prefix=""):
                         }
                         if(show_added_to_recents != True):
                             shows_obj["recent"] = add_show_to_resents(shows_obj["recent"], show_title, "new_season")
+
+                    if(miniseries == True and len(shows[show_title]["season"]) == 1):
+                        shows[show_title]["show_type"] = "Miniseries"
+                    else:
+                        shows[show_title]["show_type"] = "Normal"
 
                     if(episode_number != None and (two_pronged_episode_number or not two_pronged_episode_number_unknown)):
                         if(not (episode_number in shows[show_title]["season"][season_number]["episode"])):
@@ -602,6 +605,11 @@ def resolve_repeats(shows):
             for episode in sorted_episodes_parts:
                 shows[show_name]["season"][season]["episode"][episode["number"]] = episode
 
+    for show_name in shows:
+        episode_number = 0
+        for season in shows[show_name]["season"]:
+            episode_number = episode_number + len(shows[show_name]["season"][season]["episode"])
+        shows[show_name]["episode_number"] = episode_number
     return shows
 
 def merge_shows_files(showsObj, script_prefix=""):
