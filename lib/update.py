@@ -1,6 +1,6 @@
 import os
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil import parser
 
 import sys
@@ -30,8 +30,8 @@ __ShowDBVersion__ = get_showdb_version()
 __UserDBVersion__ = get_userdb_version()
 
 def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_to_interpreter = False):
-    todays_date = datetime.now()
-    todays_date_string = todays_date.strftime("%Y-%m-%d")
+    yesterdays_date = datetime.now() - timedelta(days=1)
+    yesterdays_date_string = yesterdays_date.strftime("%Y-%m-%d")
 
     if(xbmc_libraries_loaded == False and xbmc == True):
         raise ValueError("Could not load XBMC Libraries")
@@ -237,7 +237,7 @@ def update(pickle_file = "./shows.pickle", save_dir = ".", xbmc = True, return_t
         print("Saving Updated Shows to {0}".format(pickle_file))
 
     # ========= Save Shows =========
-    shows["parsed"] = todays_date_string
+    shows["parsed"] = yesterdays_date_string
 
     parseSchedule.save_shows(shows,pickle_file)
 
