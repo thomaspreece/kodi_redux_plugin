@@ -1,0 +1,12 @@
+{
+  "tvdb_api_key": "KEY_HERE",
+  "moviedb_api_key": "KY_HERE",
+  "db_format": "mysql",
+  "mysql_db": "db",
+  "mysql_hostname": "127.0.0.1",
+  "mysql_password": "password",
+  "mysql_port": "3306",
+  "mysql_username": "kodi",
+  "user_db_format": "mysql",
+  "user_use_same_db": "true"
+}
