@@ -1,7 +1,6 @@
 import os
 from lib import update
 import argparse
-#from lib import resolve_redux
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 PROFILE_DIR = "{0}/../../userdata/addon_data/plugin.video.redux".format(SCRIPT_DIR)

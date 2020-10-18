@@ -16,8 +16,8 @@ provider-name="TomPreece">
   <provides>video</provides>
 </extension>
 <extension point="xbmc.addon.metadata">
-  <summary lang="en">Redux Kodi Video Plugin</summary>
-  <description lang="en">A plugin to search and view the complete BBC Redux video catalogue. BBC Staff Use Only.</description>
+  <summary lang="en">Redux Kodi Plugin</summary>
+  <description lang="en">An experiment into what iPlayer may look like with a complete back-catalogue</description>
   <assets>
     <icon>resources\icon.png</icon>
     <fanart>resources\fanart.jpg</fanart>

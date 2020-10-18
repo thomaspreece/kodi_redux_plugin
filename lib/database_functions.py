@@ -1,5 +1,3 @@
-# models.py
-
 import os
 from lib import peewee
 

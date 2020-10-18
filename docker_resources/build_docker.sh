@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --rm -t "bbcredux/updater" .
+docker build --rm -t "kodiredux/updater" .

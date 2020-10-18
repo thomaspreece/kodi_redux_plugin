@@ -1,2 +1,1 @@
-docker build . -t bbcredux/updater
-
+docker build . -t kodiredux/updater

@@ -9,7 +9,6 @@ import glob
 from bs4 import BeautifulSoup
 
 SCRAPE_URL = "http://www.bbc.co.uk/"
-#SCRAPE_URL = "http://open.live.bbc.co.uk/aps/"
 
 def get_moviedb_show_download_list(shows,redo=False,scrape_prefix=""):
     SCRAPE_FOLDER = "{0}show-scrape-moviedb".format(scrape_prefix)
